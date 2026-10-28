@@ -6,6 +6,11 @@ const IRREGULAR = new Map(
     .map(([base, ...forms]) => [base, forms] as const),
 );
 
+/** Inflected form → base word, for lookups ("taught" → "teach"). */
+export const BASE_FORM = new Map<string, string>(
+  [...IRREGULAR].flatMap(([base, forms]) => forms.map((form) => [form, base] as const)),
+);
+
 /** Find the headword (or an inflected form) inside an example sentence. */
 export function headwordPattern(word: string) {
   const w = word.trim().toLowerCase();

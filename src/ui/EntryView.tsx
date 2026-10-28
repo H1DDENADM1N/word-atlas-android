@@ -5,6 +5,7 @@ import { splitHighlight, splitPair } from "../lib/text";
 import { formatInterval, isMastered } from "../store/srs";
 import { toggleBookmark, useStore } from "../store/store";
 import { Illustration } from "./Illustration";
+import { LookupText } from "./Lookup";
 import { Speak } from "./Speak";
 import { shareWord } from "./share";
 import { openWord } from "../lib/router";
@@ -24,11 +25,14 @@ export function Highlight({ text, word }: { text: string; word: string }) {
 export function Pronounce({ entry, refw }: { entry: Entry; refw: WordRef | Entry }) {
   const atlas = useAtlas();
   const accent = useStore((s) => s.settings.accent);
-  const both = entry.uk && entry.us && entry.uk !== entry.us;
-  const items: ["uk" | "us", string, string][] = both
-    ? [["uk", "英", entry.uk], ["us", "美", entry.us]]
-    : [[accent, accent === "uk" ? "英" : "美", entry.uk || entry.us]];
-  if (!both && items[0][2] === "") return null;
+  // Both accents are always offered, the preferred one first. When an accent
+  // has no transcription of its own, it borrows the other's rather than
+  // hiding the button — the recordings differ even when the IPA does not.
+  const items: ["uk" | "us", string, string][] = [
+    ["uk", "英", entry.uk || entry.us],
+    ["us", "美", entry.us || entry.uk],
+  ];
+  if (!items[0][2] && !items[1][2]) return null;
   return (
     <div className="pron">
       {(accent === "us" ? [...items].reverse() : items).map(([acc, label, ipa]) => (
@@ -123,7 +127,7 @@ export function EntryView({ entry, mode = "detail", eager = true }: { entry: Ent
                 <li key={i}>
                   {entry.ex.length > 1 && <span className={`ex-tag ${i ? "is-ielts" : ""}`}>{i ? "雅思语境" : "日常"}</span>}
                   <p className="ex-en" lang="en">
-                    <Highlight text={x.en} word={entry.w} />
+                    <LookupText text={x.en} word={entry.w} />
                     <Speak url={exUrls[i] ?? null} text={x.en} accent={i === 1 && exUrls[1] ? "us" : accent} size="sm" className="ex-speak" />
                   </p>
                   <p className="ex-zh">{x.zh}</p>

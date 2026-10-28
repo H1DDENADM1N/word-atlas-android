@@ -204,17 +204,32 @@ export function shellToast(message: string) {
 
 /* ---------- system back button ---------- */
 
+/** Floating panels that sit above the router and want the back key first. */
+const overlays = new Set<() => boolean>();
+
+/** Lets an overlay claim the hardware back key. Returns an unregister function. */
+export function registerOverlay(close: () => boolean) {
+  overlays.add(close);
+  syncBack();
+  return () => {
+    overlays.delete(close);
+    syncBack();
+  };
+}
+
 /** Mirrors the router state into the shell so the hardware back key knows. */
 function syncBack() {
   if (!shell) return;
   const loc = currentLocation();
-  shell.setBackEnabled(!!loc.word || historyDepth() > 0 || loc.route.page !== "today");
+  shell.setBackEnabled(!!loc.word || historyDepth() > 0 || loc.route.page !== "today" || overlays.size > 0);
 }
 
 /** Wires the hardware back key to in-app navigation. Returns true when consumed. */
 export function installBackHandler() {
   if (!shell) return;
   window.__waBack = () => {
+    // Newest overlay first: the lookup card closes before the entry behind it.
+    for (const close of [...overlays].reverse()) if (close()) return true;
     const loc = currentLocation();
     if (loc.word) {
       closeWord();
