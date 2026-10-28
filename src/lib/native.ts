@@ -9,6 +9,7 @@ import { closeWord, currentLocation, go, historyDepth } from "./router";
 
 interface Shell {
   saveFile(name: string, mime: string, base64: string): void;
+  assetDataUrl(url: string): string | null;
   speak(text: string, lang: string, rate: number): void;
   prepare(text: string, lang: string, rate: number): void;
   stopSpeak(): void;
@@ -60,6 +61,23 @@ export async function saveBlob(blob: Blob, name: string): Promise<"shell" | "bro
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   return "browser";
+}
+
+/**
+ * Read a packaged asset as a `data:` URL, or null on the web.
+ *
+ * The page runs from `file://` inside the APK, and drawing such an image into a
+ * canvas taints it — `canvas.toBlob()` then throws, so the share card could
+ * never be exported. A `data:` URL is origin-clean, so the card renders from
+ * the same bytes the page displays.
+ */
+export function assetDataUrl(src: string): string | null {
+  if (!shell?.assetDataUrl) return null;
+  try {
+    return shell.assetDataUrl(new URL(src, location.href).href);
+  } catch {
+    return null;
+  }
 }
 
 /* ---------- speech ---------- */

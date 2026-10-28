@@ -55,7 +55,8 @@ export async function shareGalaxy(source: HTMLCanvasElement, lit: number, total:
     }
     const where = await saveBlob(blob, file.name);
     toast(where === "shell" ? "星图已保存到下载目录" : "星图已保存", "ok");
-  } catch {
+  } catch (error) {
+    console.error("galaxy card failed:", error);
     toast("星图生成失败", "warn");
   }
 }

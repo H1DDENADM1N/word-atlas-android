@@ -34,9 +34,11 @@ import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.Toast;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
@@ -55,6 +57,7 @@ public class MainActivity extends Activity {
 
     private static final String TAG = "WordAtlas";
     private static final String START_URL = "file:///android_asset/www/index.html";
+    private static final String ASSET_PREFIX = "file:///android_asset/";
     private static final int BOOT_BG = 0xFF0D1120;
 
     private WebView web;
@@ -420,10 +423,54 @@ public class MainActivity extends Activity {
     /* JS bridge                                                           */
     /* ------------------------------------------------------------------ */
 
+    /**
+     * Hand a packaged asset back as a {@code data:} URL.
+     *
+     * <p>The page runs from {@code file://}, where an image drawn into a canvas
+     * taints it, and {@code canvas.toBlob()} then throws — which is why the
+     * share card could never be produced. Images with a {@code data:} URL are
+     * origin-clean, so the card can be exported without loosening
+     * {@code setAllowFileAccessFromFileURLs}.
+     *
+     * @param url absolute {@code file:///android_asset/...} URL of the asset
+     * @return {@code data:} URL, or null when the path is not a packaged asset
+     */
+    private String assetDataUrl(String url) {
+        if (url == null) return null;
+        String path = url;
+        int cut = path.indexOf('?');
+        if (cut >= 0) path = path.substring(0, cut);
+        if (path.startsWith(ASSET_PREFIX)) path = path.substring(ASSET_PREFIX.length());
+        while (path.startsWith("/")) path = path.substring(1);
+        if (!path.startsWith("www/")) {
+            Log.w(TAG, "refusing to read outside the packaged page: " + path);
+            return null;
+        }
+        String mime = path.endsWith(".webp") ? "image/webp"
+                : path.endsWith(".png") ? "image/png"
+                : path.endsWith(".jpg") || path.endsWith(".jpeg") ? "image/jpeg"
+                : "application/octet-stream";
+        try (InputStream in = getAssets().open(path)) {
+            ByteArrayOutputStream buffer = new ByteArrayOutputStream(1 << 17);
+            byte[] chunk = new byte[1 << 15];
+            int read;
+            while ((read = in.read(chunk)) > 0) buffer.write(chunk, 0, read);
+            return "data:" + mime + ";base64," + Base64.encodeToString(buffer.toByteArray(), Base64.NO_WRAP);
+        } catch (IOException error) {
+            Log.w(TAG, "cannot read asset " + path, error);
+            return null;
+        }
+    }
+
     private final class Bridge {
         @JavascriptInterface
         public void saveFile(String name, String mime, String base64) {
             MainActivity.this.saveFile(name, mime, base64);
+        }
+
+        @JavascriptInterface
+        public String assetDataUrl(String url) {
+            return MainActivity.this.assetDataUrl(url);
         }
 
         @JavascriptInterface

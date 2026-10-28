@@ -1,5 +1,5 @@
 import type { Atlas, Entry } from "../atlas/types";
-import { saveBlob } from "../lib/native";
+import { assetDataUrl, saveBlob } from "../lib/native";
 import { toast } from "./Toast";
 
 const SERIF = '"Fraunces Variable", "Songti SC", "Noto Serif SC", Georgia, serif';
@@ -12,6 +12,20 @@ function loadImage(src: string) {
     img.onerror = reject;
     img.src = src;
   });
+}
+
+/**
+ * The illustration, safe to draw into an exportable canvas.
+ *
+ * Inside the APK the page is served from `file://`, where drawing a file image
+ * taints the canvas and `toBlob()` throws. Asking the shell for the same bytes
+ * as a `data:` URL keeps the canvas clean, so the card can be exported without
+ * relaxing the WebView's file access rules.
+ */
+async function illustration(src: string | null) {
+  if (!src) return null;
+  const inline = assetDataUrl(src);
+  return inline ? loadImage(inline) : loadImage(src);
 }
 
 function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number) {
@@ -60,9 +74,11 @@ export async function renderWordCard(atlas: Atlas, e: Entry) {
   ctx.fillRect(pad, pad, art, art * 0.78);
   if (src) {
     try {
-      const img = await loadImage(src);
-      const crop = img.width * 0.78;
-      ctx.drawImage(img, 0, (img.height - crop) / 2, img.width, crop, pad, pad, art, art * 0.78);
+      const img = await illustration(src);
+      if (img) {
+        const crop = img.width * 0.78;
+        ctx.drawImage(img, 0, (img.height - crop) / 2, img.width, crop, pad, pad, art, art * 0.78);
+      }
     } catch {
       /* keep the plain plate */
     }
@@ -127,7 +143,10 @@ export async function shareWord(atlas: Atlas, e: Entry) {
     }
     const where = await saveBlob(blob, file.name);
     toast(where === "shell" ? "分享卡片已保存到下载目录" : "分享卡片已保存", "ok");
-  } catch {
+  } catch (error) {
+    // Canvas export is the fragile step (a tainted canvas throws here), and
+    // logcat is the only console a device gives us.
+    console.error("share card failed:", error);
     toast("卡片生成失败，请稍后再试", "warn");
   }
 }

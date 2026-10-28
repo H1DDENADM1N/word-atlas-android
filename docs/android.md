@@ -152,6 +152,39 @@ WebView 侧还关闭了 `file` 域的脚本访问（`setAllowFileAccessFromFileU
 
 <img src="assets/android-confirm.jpg" width="260" alt="清空记录的原生确认框"> <img src="assets/android-import.jpg" width="260" alt="导入备份成功后的提示">
 
+## 排查记录：分享卡片「生成失败，请稍后再试」
+
+网页版正常，装进 APK 后**每个词都失败**。关键线索是那句 toast：`saveFile` 失败会走原生自己的「保存失败：…」，而这里报的是 JS 的「卡片生成失败」，说明异常发生在**保存之前**——也就是 `canvas.toBlob()`。
+
+根因是 **canvas 被污染（taint）**：
+
+| 环节 | 网页版 | APK |
+| :--- | :--- | :--- |
+| 页面来源 | `https://…` | `file:///android_asset/www/index.html` |
+| 插图来源 | 同源 http | 同源 `file://`，但每个 file 文档是独立的不透明源 |
+| `drawImage(插图)` | canvas 干净 | canvas 被标记为污染 |
+| `canvas.toBlob()` | 正常出 PNG | 回调收到 `null` → 抛错 → 失败 toast |
+
+按规范 `toDataURL()` 会直接抛 `SecurityError`，`toBlob()` 则是回调给 `null`，两条路都通向同一个 toast，所以现象是「每次都失败」。
+
+两种修法：
+
+- **放宽 `setAllowFileAccessFromFileURLs(true)`**：能让 file 文档互相视为同源，但等于让页面 JS 能读任意 file:// 资源，和本项目的隔离基调不符，而且不同 WebView 版本行为不完全一致。
+- **把插图换成 `data:` URL**（采用）：`data:` 图片永远是 origin-clean，canvas 不会被污染。新增桥方法 `assetDataUrl(url)`，把 `file:///android_asset/...` 读成 base64 `data:` URL 交给页面——字节和页面显示的是同一份，视觉完全一致。
+
+```ts
+// src/ui/share.ts
+async function illustration(src: string | null) {
+  if (!src) return null;
+  const inline = assetDataUrl(src);          // APK 内：data: URL
+  return inline ? loadImage(inline) : loadImage(src);   // 网页：原样
+}
+```
+
+桥方法只允许读 `assets/www/` 之下的路径，避免变成一个任意文件读取口。修完实测：`upgrade` 词卡生成 1080×1440 PNG，插图、音标、释义、例句、页脚齐全，落在 `下载/Word Atlas/`。
+
+顺带修掉同一批日志里的 `Uncaught (in promise) AbortError: Transition was skipped`——`startViewTransition()` 的 `ready` 在新转场打断旧转场时会 reject，之前只 catch 了 `finished`。快速连点导航时每次都会刷一条，现在 `ready` / `finished` 都吞掉了。
+
 ## 自测
 
 不需要真机也能先验证网页层：把 `dist-android/`、`android/build/data.js`、`public/atlas`、`public/sfx`、`public/brand` 放进同一个目录，用浏览器打开 `index.html`（`file://`）。页面能正常显示图鉴、词卡、发音，就说明数据内联与相对路径都对了。
