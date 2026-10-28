@@ -18,6 +18,10 @@ function classicShell(): Plugin {
       const bundle = match[0].replace(/\s+type="module"/g, "").replace(/\s+crossorigin(="[^"]*")?/g, "");
       return (
         html
+          // The app never zooms: MainActivity turns pinch and double-tap off in
+          // the WebView, and this keeps the packaged page saying the same thing.
+          // The website is built from the same index.html but keeps its zoom.
+          .replace(/(<meta name="viewport" content="[^"]*?)"/, '$1, maximum-scale=1, user-scalable=no"')
           // The index is inlined in data.js; the preload would hit the network layer.
           .replace(/\s*<link rel="preload" href="[^"]*atlas\/index\.json"[^>]*>/, "")
           .replace(tag, "")
