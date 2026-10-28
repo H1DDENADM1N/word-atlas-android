@@ -1,5 +1,6 @@
 import type { Atlas, Entry, IndexRow, WordRef } from "./types";
 import { MEDIA } from "./types";
+import { embedded } from "./embedded";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const url = (p: string) => `${BASE}/atlas/${p}`;
@@ -16,10 +17,28 @@ interface IndexFile {
   words: IndexRow[];
 }
 
-export async function loadOpenAtlas(): Promise<Atlas> {
+async function readIndex(): Promise<IndexFile> {
+  const local = embedded();
+  if (local) return JSON.parse(local.index) as IndexFile;
   const res = await fetch(url("index.json"));
   if (!res.ok) throw new Error(`词库索引加载失败（${res.status}）`);
-  const idx = (await res.json()) as IndexFile;
+  return (await res.json()) as IndexFile;
+}
+
+async function readChunk(n: number): Promise<Entry[]> {
+  const local = embedded();
+  if (local) {
+    const raw = local.chunks[n];
+    if (!raw) throw new Error(`词条加载失败（${n}）`);
+    return JSON.parse(raw) as Entry[];
+  }
+  const res = await fetch(url(`entries/${n}.json`));
+  if (!res.ok) throw new Error(`词条加载失败（${res.status}）`);
+  return (await res.json()) as Entry[];
+}
+
+export async function loadOpenAtlas(): Promise<Atlas> {
+  const idx = await readIndex();
   const words: WordRef[] = idx.words.map((r, order) => ({
     id: r[0],
     word: r[1],
@@ -37,11 +56,7 @@ export async function loadOpenAtlas(): Promise<Atlas> {
   const loadChunk = (n: number) => {
     let p = pending.get(n);
     if (!p) {
-      p = fetch(url(`entries/${n}.json`))
-        .then((r) => {
-          if (!r.ok) throw new Error(`词条加载失败（${r.status}）`);
-          return r.json() as Promise<Entry[]>;
-        })
+      p = readChunk(n)
         .then((list) => list.forEach((e) => cache.set(e.id, e)))
         .catch((e) => {
           pending.delete(n);

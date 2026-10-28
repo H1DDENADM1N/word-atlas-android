@@ -126,6 +126,18 @@ npm run build        # 构建到 dist/
 
 **技术栈**：React 19 · TypeScript · Vite · ts-fsrs · WebGL2
 
+## 安卓离线版
+
+同一个仓库也能打包成**完全离线**的安卓应用：没有 `INTERNET` 权限，不启动本地服务，不监听端口，词库、插画、录音、音效、字体与语音合成引擎全部封装在 APK 内。
+
+```bash
+python3 scripts/android/fetch_tts.py    # 一次性拉取离线语音运行时与音色
+python3 scripts/android/build_apk.py    # 需要 JDK 17 与 Android SDK
+adb install -r word-atlas-offline.apk
+```
+
+产物约 **1004 MB**（7,298 幅插画 + 22,905 段录音 + 内置 Kokoro 英/美音色都在里面），安装后不联网也能用全部词条，朗读也不依赖系统 TTS。实现方式、体积构成和已知限制见 [安卓离线版说明](docs/android.md)。
+
 ## 开放数据
 
 不仅可以直接使用应用，也可以把词库用于自己的学习工具、Anki 牌组或研究项目。

@@ -11,7 +11,8 @@ export function transition(update: () => void) {
     update();
     return;
   }
-  d.startViewTransition(() => flushSync(update));
+  // A newer transition can cancel this one; that is expected, not an error.
+  d.startViewTransition(() => flushSync(update)).finished.catch(() => null);
 }
 
 /** Morph an element (e.g. a gallery tile's illustration) into the word card. */
@@ -26,5 +27,5 @@ export function morphFrom(el: HTMLElement | null | undefined, update: () => void
     el.style.viewTransitionName = "";
     flushSync(update);
   });
-  t.finished.finally(() => (el.style.viewTransitionName = ""));
+  t.finished.catch(() => null).finally(() => (el.style.viewTransitionName = ""));
 }

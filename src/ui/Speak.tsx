@@ -1,6 +1,6 @@
 import { Volume2 } from "lucide-react";
-import { useState } from "react";
-import { play } from "../lib/audio";
+import { useEffect, useState } from "react";
+import { play, prepareVoice } from "../lib/audio";
 
 export function Speak({
   url,
@@ -22,6 +22,11 @@ export function Speak({
   kbd?: string;
 }) {
   const [on, setOn] = useState(false);
+  // No recording means the bundled voice will read this text. Render it while
+  // the button is just sitting there, so the tap does not wait for synthesis.
+  useEffect(() => {
+    if (!url) prepareVoice(text, accent, rate);
+  }, [url, text, accent, rate]);
   const run = async (e: React.MouseEvent) => {
     e.stopPropagation();
     setOn(true);

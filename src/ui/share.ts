@@ -1,4 +1,5 @@
 import type { Atlas, Entry } from "../atlas/types";
+import { saveBlob } from "../lib/native";
 import { toast } from "./Toast";
 
 const SERIF = '"Fraunces Variable", "Songti SC", "Noto Serif SC", Georgia, serif';
@@ -124,12 +125,8 @@ export async function shareWord(atlas: Atlas, e: Entry) {
       await navigator.share({ files: [file], title: e.w }).catch(() => null);
       return;
     }
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = file.name;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-    toast("分享卡片已保存", "ok");
+    const where = await saveBlob(blob, file.name);
+    toast(where === "shell" ? "分享卡片已保存到下载目录" : "分享卡片已保存", "ok");
   } catch {
     toast("卡片生成失败，请稍后再试", "warn");
   }

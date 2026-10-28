@@ -2,6 +2,8 @@
  * Sound design: short UI cues and looping ambience, played through Web Audio so
  * loops are gapless and the ambience can duck under pronunciations.
  */
+import { embedded } from "../atlas/embedded";
+
 const BASE = `${import.meta.env.BASE_URL}sfx/`;
 
 export type Cue = "correct" | "wrong" | "flip" | "page" | "complete" | "streak" | "start" | "tap" | "key" | "twinkle" | "fly" | "ignite";
@@ -47,13 +49,23 @@ function audio() {
   return ctx;
 }
 
+function decodeInline(text: string): ArrayBuffer {
+  const bin = atob(text);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes.buffer;
+}
+
 function load(file: string) {
   let p = buffers.get(file);
   if (!p) {
     const c = audio();
+    const inline = embedded()?.sfx[file];
     p = c
-      ? fetch(BASE + file)
-          .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
+      ? (inline
+          ? Promise.resolve(decodeInline(inline))
+          : fetch(BASE + file).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
+        )
           .then((b) => c.decodeAudioData(b))
           .catch(() => null)
       : Promise.resolve(null);

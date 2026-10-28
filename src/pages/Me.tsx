@@ -2,6 +2,7 @@ import { Download, RotateCcw, Upload } from "lucide-react";
 import { useMemo, useRef } from "react";
 import { useAtlas } from "../atlas/context";
 import { isMastered } from "../store/srs";
+import { saveBlob } from "../lib/native";
 import { dayKey, exportBackup, importBackup, resetProgress, store, useStore, type Settings } from "../store/store";
 import { toast } from "../ui/Toast";
 import { streakOf } from "./Today";
@@ -33,13 +34,10 @@ export function Me({ privateAvailable }: { privateAvailable: boolean }) {
   }, [progress]);
 
   const set = (patch: Partial<Settings>) => store.settings(patch);
-  const download = () => {
+  const download = async () => {
     const blob = new Blob([exportBackup()], { type: "application/json" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `word-atlas-backup-${dayKey()}.json`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    const where = await saveBlob(blob, `word-atlas-backup-${dayKey()}.json`);
+    toast(where === "shell" ? "备份已保存到下载目录" : "备份已下载", "ok");
   };
   const restore = async (f: File) => {
     if (f.size > 30 * 1024 * 1024) return toast("文件太大，不像是学习备份。", "warn");

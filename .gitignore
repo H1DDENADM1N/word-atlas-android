@@ -1,5 +1,6 @@
 node_modules/
 dist/
+dist-android/
 .local/
 .env
 .env.*
@@ -9,3 +10,18 @@ output/
 .DS_Store
 .playwright-cli/
 *.tsbuildinfo
+
+# Android build output, signing key and local preview tree
+android/build/
+android/keystore/
+.apk-preview/
+*.apk
+*.apk.idsig
+
+# Offline TTS runtime + voices, fetched by scripts/android/fetch_tts.py (~540 MB)
+android/vendor/
+.cache/
+.verify/
+
+# Agent workspace state (session notes), not part of the app
+.workbuddy-ai/

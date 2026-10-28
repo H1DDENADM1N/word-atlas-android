@@ -1,3 +1,4 @@
+import { saveBlob } from "../lib/native";
 import { toast } from "../ui/Toast";
 
 const SERIF = '"Fraunces Variable", "Songti SC", "Noto Serif SC", Georgia, serif';
@@ -52,12 +53,8 @@ export async function shareGalaxy(source: HTMLCanvasElement, lit: number, total:
       await navigator.share({ files: [file] }).catch(() => null);
       return;
     }
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = file.name;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-    toast("星图已保存", "ok");
+    const where = await saveBlob(blob, file.name);
+    toast(where === "shell" ? "星图已保存到下载目录" : "星图已保存", "ok");
   } catch {
     toast("星图生成失败", "warn");
   }

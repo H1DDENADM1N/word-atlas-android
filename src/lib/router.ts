@@ -45,18 +45,39 @@ export function href(route: Route, word?: string | null) {
 }
 
 let loc = parse(location.hash);
+/** In-app entries pushed on top of the entry page; drives the hardware back key. */
+let depth = 0;
 const subs = new Set<() => void>();
-window.addEventListener("hashchange", () => {
-  const next = parse(location.hash);
+
+const same = (a: Location, b: Location) =>
+  a.word === b.word && href(a.route) === href(b.route);
+
+function apply(next: Location) {
   const pageChange = next.route.page !== loc.route.page;
   const update = () => {
     loc = next;
     subs.forEach((f) => f());
+    window.dispatchEvent(new Event("wa:loc"));
   };
   // Crossfade between pages; the word sheet animates on its own.
   if (pageChange && !next.word) transition(update);
   else update();
+}
+
+window.addEventListener("hashchange", () => {
+  const next = parse(location.hash);
+  if (same(next, loc)) return;
+  apply(next);
 });
+window.addEventListener("popstate", () => {
+  const next = parse(location.hash);
+  if (same(next, loc)) return;
+  depth = Math.max(0, depth - 1);
+  apply(next);
+});
+
+/** Number of in-app history entries behind the current one. */
+export const historyDepth = () => depth;
 
 export const useLocation = () =>
   useSyncExternalStore(
@@ -70,17 +91,14 @@ export const useLocation = () =>
 export function go(route: Route, word?: string | null, replace = false) {
   const h = href(route, word);
   if (replace) history.replaceState(null, "", h);
-  else history.pushState(null, "", h);
-  const next = parse(h);
-  const pageChange = next.route.page !== loc.route.page;
-  const update = () => {
-    loc = next;
-    subs.forEach((f) => f());
-  };
-  if (pageChange && !replace) transition(update);
-  else update();
+  else {
+    history.pushState(null, "", h);
+    depth++;
+  }
+  apply(parse(h));
 }
 
 export const openWord = (id: string) => go(loc.route, id);
-export const closeWord = () => go(loc.route, null);
+/** Closing replaces the current entry so the back key never reopens the sheet. */
+export const closeWord = () => go(loc.route, null, true);
 export const currentLocation = () => loc;

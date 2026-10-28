@@ -1,4 +1,5 @@
 import type { Atlas } from "../atlas/types";
+import { saveBlob } from "../lib/native";
 import { sessionStats } from "../store/session";
 import { Rating } from "../store/srs";
 import type { ActiveSession } from "../store/store";
@@ -83,12 +84,8 @@ export async function shareSession(atlas: Atlas, s: ActiveSession) {
       await navigator.share({ files: [file] }).catch(() => null);
       return;
     }
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = file.name;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-    toast("成绩卡已保存", "ok");
+    const where = await saveBlob(blob, file.name);
+    toast(where === "shell" ? "成绩卡已保存到下载目录" : "成绩卡已保存", "ok");
   } catch {
     toast("成绩卡生成失败", "warn");
   }

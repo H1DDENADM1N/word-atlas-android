@@ -2023,6 +2023,10 @@ code {
 .tile .illo {
   border-radius: 16px;
   flex: none;
+  /* Buttons do not stretch flex children on older Chromium (Android WebView
+     113), which left the illustration with no width — and no height. */
+  width: 100%;
+  align-self: stretch;
 }
 .tile .illo img {
   transition: opacity 0.5s var(--ease), transform 0.9s var(--ease);
