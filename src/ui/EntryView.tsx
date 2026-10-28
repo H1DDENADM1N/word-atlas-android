@@ -22,6 +22,21 @@ export function Highlight({ text, word }: { text: string; word: string }) {
   );
 }
 
+/**
+ * Some entries carry two transcriptions — `/ˈprɒdʒekt/; /prəˈdjekt/` for the noun
+ * and the verb, or `/ˈmɪnɪt/, /maɪˈnjuːt/`. Each one is atomic, but the pair may
+ * break between the halves when the tile is narrow.
+ */
+function Ipa({ text }: { text: string }) {
+  const parts = text.split(/(\s*[;,]\s*)/);
+  if (parts.length < 3) return <span className="ipa">{text}</span>;
+  return (
+    <span className="ipa ipa-split">
+      {parts.map((part, i) => (i % 2 ? part : <span key={i} className="ipa-part">{part}</span>))}
+    </span>
+  );
+}
+
 export function Pronounce({ entry, refw }: { entry: Entry; refw: WordRef | Entry }) {
   const atlas = useAtlas();
   const accent = useStore((s) => s.settings.accent);
@@ -45,7 +60,7 @@ export function Pronounce({ entry, refw }: { entry: Entry; refw: WordRef | Entry
           label={
             <>
               <em>{label}</em>
-              <span className="ipa">{ipa}</span>
+              <Ipa text={ipa} />
             </>
           }
         />

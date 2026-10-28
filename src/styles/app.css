@@ -273,6 +273,16 @@ code {
 .ipa {
   font-family: "Charis SIL", "Doulos SIL", "Lucida Grande", "Segoe UI", "Noto Sans", var(--sans);
   letter-spacing: 0.01em;
+  /* A transcription is one token: breaking it after the opening slash reads as
+     a typo, so it never wraps. Long entries carry two transcriptions separated
+     by ";" — .ipa-part lets the line break between them instead. */
+  white-space: nowrap;
+}
+.ipa-split {
+  white-space: normal;
+}
+.ipa-part {
+  white-space: nowrap;
 }
 .link {
   color: var(--terra-ink);
@@ -1796,7 +1806,7 @@ code {
 
 .wotd {
   display: grid;
-  grid-template-columns: 132px 1fr;
+  grid-template-columns: 132px minmax(0, 1fr);
   gap: 20px;
   align-items: start;
   cursor: pointer;
@@ -1828,9 +1838,65 @@ code {
   font: italic 400 16px/1.5 var(--serif);
   color: var(--ink-2);
 }
+@media (max-width: 519px) {
+  /* A 363px phone leaves 125px beside a 132px plate — less than one
+     pronunciation chip needs, so the IPA used to break after its opening
+     slash. The plate now sits beside the headword only, and everything from
+     the chips down runs the full width of the tile. */
+  .wotd {
+    grid-template-columns: 104px minmax(0, 1fr);
+    column-gap: 16px;
+    row-gap: 10px;
+  }
+  .wotd-art {
+    grid-area: 1 / 1 / 3 / 2;
+    aspect-ratio: 1;
+  }
+  .wotd-body {
+    display: contents;
+  }
+  .wotd-body > .eyebrow {
+    grid-area: 1 / 2;
+    align-self: end;
+  }
+  .wotd-body > .wotd-word {
+    grid-area: 2 / 2;
+    align-self: start;
+    margin: 0;
+    font-size: 34px;
+  }
+  .wotd-body > .wotd-pron,
+  .wotd-body > .wotd-zh,
+  .wotd-body > .wotd-ex {
+    grid-column: 1 / -1;
+  }
+  /* Two chips plus the gap need to clear the 277px row. Android's IPA fallback
+     draws a few px wider than Segoe UI, which tipped the pair onto two lines,
+     so the chip trims 6px of chrome each here. */
+  .wotd .pron {
+    gap: 4px;
+  }
+  .wotd .speak-sm .speak-icon {
+    width: 28px;
+    height: 28px;
+  }
+  .wotd .speak.has-label {
+    padding-right: 8px;
+    gap: 5px;
+  }
+  .wotd .speak-label em {
+    font-size: 11px;
+  }
+  .wotd-zh {
+    margin-top: 0;
+  }
+  .wotd-ex {
+    margin-top: 0;
+  }
+}
 @media (min-width: 560px) {
   .wotd {
-    grid-template-columns: 200px 1fr;
+    grid-template-columns: 200px minmax(0, 1fr);
     gap: 26px;
   }
 }

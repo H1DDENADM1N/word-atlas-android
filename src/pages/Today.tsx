@@ -245,7 +245,7 @@ function WordOfDay() {
           {pick.word}
         </p>
         {entry && (
-          <div onClick={(e) => e.stopPropagation()}>
+          <div className="wotd-pron" onClick={(e) => e.stopPropagation()}>
             <Pronounce entry={entry} refw={pick} />
           </div>
         )}
