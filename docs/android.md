@@ -1,5 +1,7 @@
 # 安卓离线版 / Offline Android build
 
+> 仓库：[H1DDENADM1N/word-atlas-android](https://github.com/H1DDENADM1N/word-atlas-android)（上游原版：[designfuchen/word-atlas](https://github.com/designfuchen/word-atlas)）
+
 把词光打包成一个**完全离线**的安卓应用：没有网络权限，不启动本地服务，不占端口，词库、插画、录音、音效、字体和语音合成引擎全部装在 APK 里。
 
 <table>
