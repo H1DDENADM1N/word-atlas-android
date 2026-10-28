@@ -9,6 +9,7 @@ import { closeWord, currentLocation, go, historyDepth } from "./router";
 
 interface Shell {
   saveFile(name: string, mime: string, base64: string): void;
+  saveAndShare(name: string, mime: string, base64: string, title: string): void;
   assetDataUrl(url: string): string | null;
   speak(text: string, lang: string, rate: number): void;
   prepare(text: string, lang: string, rate: number): void;
@@ -49,10 +50,22 @@ function toBase64(bytes: Uint8Array) {
  * Save a generated file (backup, share card). Inside the app it is handed to
  * the shell, which writes it to the device's Downloads folder; on the web the
  * browser download is used.
+ *
+ * Pass {@code share} for an image the user is expected to send on: the shell
+ * then opens the system share sheet after saving, which is the only way to
+ * reach WeChat and friends from a WebView. The browser keeps using its own
+ * download, since the page has no access to the system chooser.
  */
-export async function saveBlob(blob: Blob, name: string): Promise<"shell" | "browser"> {
+export async function saveBlob(
+  blob: Blob,
+  name: string,
+  share?: { title: string },
+): Promise<"shell" | "browser"> {
   if (shell) {
-    shell.saveFile(name, blob.type || "application/octet-stream", toBase64(new Uint8Array(await blob.arrayBuffer())));
+    const type = blob.type || "application/octet-stream";
+    const base64 = toBase64(new Uint8Array(await blob.arrayBuffer()));
+    if (share && shell.saveAndShare) shell.saveAndShare(name, type, base64, share.title);
+    else shell.saveFile(name, type, base64);
     return "shell";
   }
   const a = document.createElement("a");

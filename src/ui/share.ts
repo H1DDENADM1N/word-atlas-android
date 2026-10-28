@@ -1,32 +1,10 @@
 import type { Atlas, Entry } from "../atlas/types";
-import { assetDataUrl, saveBlob } from "../lib/native";
+import { loadOptional } from "../lib/canvasImage";
+import { saveBlob } from "../lib/native";
 import { toast } from "./Toast";
 
 const SERIF = '"Fraunces Variable", "Songti SC", "Noto Serif SC", Georgia, serif';
 const SANS = '-apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif';
-
-function loadImage(src: string) {
-  return new Promise<HTMLImageElement>((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = src;
-  });
-}
-
-/**
- * The illustration, safe to draw into an exportable canvas.
- *
- * Inside the APK the page is served from `file://`, where drawing a file image
- * taints the canvas and `toBlob()` throws. Asking the shell for the same bytes
- * as a `data:` URL keeps the canvas clean, so the card can be exported without
- * relaxing the WebView's file access rules.
- */
-async function illustration(src: string | null) {
-  if (!src) return null;
-  const inline = assetDataUrl(src);
-  return inline ? loadImage(inline) : loadImage(src);
-}
 
 function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number) {
   const tokens = /[一-鿿]/.test(text) ? Array.from(text) : text.split(/(\s+)/);
@@ -73,14 +51,10 @@ export async function renderWordCard(atlas: Atlas, e: Entry) {
   ctx.fillStyle = "#EAE1D0";
   ctx.fillRect(pad, pad, art, art * 0.78);
   if (src) {
-    try {
-      const img = await illustration(src);
-      if (img) {
-        const crop = img.width * 0.78;
-        ctx.drawImage(img, 0, (img.height - crop) / 2, img.width, crop, pad, pad, art, art * 0.78);
-      }
-    } catch {
-      /* keep the plain plate */
+    const img = await loadOptional(src);
+    if (img) {
+      const crop = img.width * 0.78;
+      ctx.drawImage(img, 0, (img.height - crop) / 2, img.width, crop, pad, pad, art, art * 0.78);
     }
   }
   ctx.restore();
@@ -141,8 +115,9 @@ export async function shareWord(atlas: Atlas, e: Entry) {
       await navigator.share({ files: [file], title: e.w }).catch(() => null);
       return;
     }
-    const where = await saveBlob(blob, file.name);
-    toast(where === "shell" ? "分享卡片已保存到下载目录" : "分享卡片已保存", "ok");
+    const where = await saveBlob(blob, file.name, { title: `${e.w} · 词光 Word Atlas` });
+    // The shell announces the save itself and then opens the share sheet.
+    if (where === "browser") toast("分享卡片已保存", "ok");
   } catch (error) {
     // Canvas export is the fragile step (a tainted canvas throws here), and
     // logcat is the only console a device gives us.

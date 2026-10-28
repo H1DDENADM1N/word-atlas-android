@@ -33,6 +33,16 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!--
+          Hands a generated card to another app. Not exported: a receiver can
+          only read a file while the share intent's one-shot grant is alive.
+        -->
+        <provider
+            android:name=".ShareProvider"
+            android:authorities="tech.wordatlas.app.share"
+            android:exported="false"
+            android:grantUriPermissions="true" />
     </application>
 
 </manifest>

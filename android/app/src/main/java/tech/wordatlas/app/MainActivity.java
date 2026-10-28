@@ -3,6 +3,7 @@ package tech.wordatlas.app;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
+import android.content.ClipData;
 import android.content.ContentValues;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -58,6 +59,8 @@ public class MainActivity extends Activity {
     private static final String TAG = "WordAtlas";
     private static final String START_URL = "file:///android_asset/www/index.html";
     private static final String ASSET_PREFIX = "file:///android_asset/";
+    /** How long a staged share file is kept before the next share sweeps it. */
+    private static final long SHARE_TTL_MS = 24L * 60 * 60 * 1000;
     private static final int BOOT_BG = 0xFF0D1120;
 
     private WebView web;
@@ -379,7 +382,17 @@ public class MainActivity extends Activity {
     /* Files                                                               */
     /* ------------------------------------------------------------------ */
 
+    /** Save a generated file to Downloads and stop there (backups). */
     private void saveFile(String name, String mime, String base64) {
+        save(name, mime, base64, null);
+    }
+
+    /** Save a generated image and then open the system share sheet for it. */
+    private void saveAndShare(String name, String mime, String base64, String title) {
+        save(name, mime, base64, title);
+    }
+
+    private void save(String name, String mime, String base64, String shareTitle) {
         String safe = name == null ? "word-atlas" : name.replaceAll("[\\\\/:*?\"<>|]", "-");
         if (safe.isEmpty()) safe = "word-atlas";
         byte[] data;
@@ -390,6 +403,10 @@ public class MainActivity extends Activity {
             return;
         }
         String type = mime == null || mime.isEmpty() ? "application/octet-stream" : mime;
+        // The shared copy lives in the cache, because the Downloads entry is
+        // written through MediaStore and has no File to hand out.
+        File staged = null;
+        if (shareTitle != null) staged = stage(safe, data);
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 ContentValues values = new ContentValues();
@@ -417,6 +434,62 @@ public class MainActivity extends Activity {
             Log.w(TAG, "save failed", e);
             toastOnUi("保存失败：" + e.getMessage());
         }
+        if (staged != null) share(staged, type, shareTitle);
+    }
+
+    /**
+     * Copy the bytes into the share directory and drop anything left over from
+     * earlier shares. Returns null when the copy fails, which only costs the
+     * share sheet — the file is already in Downloads by then.
+     */
+    private File stage(String name, byte[] data) {
+        try {
+            File dir = ShareProvider.directory(this);
+            if (!dir.isDirectory() && !dir.mkdirs()) throw new IOException("no share directory");
+            long cutoff = System.currentTimeMillis() - SHARE_TTL_MS;
+            File[] old = dir.listFiles();
+            if (old != null) {
+                for (File file : old) if (file.lastModified() < cutoff) file.delete();
+            }
+            File target = new File(dir, name);
+            try (OutputStream out = new FileOutputStream(target)) {
+                out.write(data);
+            }
+            return target;
+        } catch (IOException error) {
+            Log.w(TAG, "cannot stage " + name, error);
+            return null;
+        }
+    }
+
+    /** Open the system chooser so the card can go to WeChat, mail, or anywhere. */
+    private void share(File file, String mime, String title) {
+        final Uri uri = ShareProvider.uriFor(file);
+        final Intent send = new Intent(Intent.ACTION_SEND);
+        send.setType(mime);
+        send.putExtra(Intent.EXTRA_STREAM, uri);
+        if (title != null && !title.isEmpty()) send.putExtra(Intent.EXTRA_TEXT, title);
+        // A URI only in EXTRA_STREAM is not granted to the receiver when the
+        // intent travels inside a chooser, and the provider is not exported —
+        // so the read permission has to be attached as ClipData, on both the
+        // target and the chooser (the latter renders the preview thumbnail).
+        final ClipData clip = ClipData.newUri(getContentResolver(), "word-atlas", uri);
+        send.setClipData(clip);
+        send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        final Intent chooser = Intent.createChooser(send, "分享到");
+        chooser.setClipData(clip);
+        chooser.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    startActivity(chooser);
+                } catch (ActivityNotFoundException error) {
+                    Log.w(TAG, "no app accepts the share", error);
+                    toastOnUi("没有可分享的应用");
+                }
+            }
+        });
     }
 
     /* ------------------------------------------------------------------ */
@@ -466,6 +539,11 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public void saveFile(String name, String mime, String base64) {
             MainActivity.this.saveFile(name, mime, base64);
+        }
+
+        @JavascriptInterface
+        public void saveAndShare(String name, String mime, String base64, String title) {
+            MainActivity.this.saveAndShare(name, mime, base64, title);
         }
 
         @JavascriptInterface

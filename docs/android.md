@@ -185,6 +185,22 @@ async function illustration(src: string | null) {
 
 顺带修掉同一批日志里的 `Uncaught (in promise) AbortError: Transition was skipped`——`startViewTransition()` 的 `ready` 在新转场打断旧转场时会 reject，之前只 catch 了 `finished`。快速连点导航时每次都会刷一条，现在 `ready` / `finished` 都吞掉了。
 
+## 分享：保存后拉起系统弹窗
+
+三张卡片（词卡 / 星图 / 成绩卡）都是「先存到下载目录，再弹系统分享面板」，微信、邮件、抖音都在面板里。WebView 不支持 `navigator.share({files})`，所以这一跳必须由原生完成。
+
+用 `ACTION_SEND` + `Intent.createChooser` 时有两个必须踩过才知道的坑：
+
+| 坑 | 现象 | 解法 |
+| :--- | :--- | :--- |
+| `file://` 不能交给别的 app | API 24+ 直接 `FileUriExposedException` | 换成 `content://` |
+| 本项目没有 AndroidX | 用不了 `FileProvider` | 自带 `ShareProvider`：只读 `cacheDir/share`、`exported="false"`、靠一次性 grant 放行 |
+| chooser 里嵌套的 intent **不继承** URI 授权 | 接收方 `SecurityException: not exported from UID`，预览缩略图也裂开 | 目标 intent 和 chooser 都要 `setClipData(...)` + `FLAG_GRANT_READ_URI_PERMISSION` |
+
+`ShareProvider` 只认 `cacheDir/share/<文件名>`，并对 `..` 和路径分隔符做了拒绝，不会变成任意文件读取口。临时文件按 24 小时清理。
+
+这一跳之后仍然**没有任何权限声明**（`aapt2 dump permissions` 只输出包名），也不需要 `WRITE_EXTERNAL_STORAGE`。
+
 ## 自测
 
 不需要真机也能先验证网页层：把 `dist-android/`、`android/build/data.js`、`public/atlas`、`public/sfx`、`public/brand` 放进同一个目录，用浏览器打开 `index.html`（`file://`）。页面能正常显示图鉴、词卡、发音，就说明数据内联与相对路径都对了。
@@ -214,6 +230,7 @@ node scripts/android/verify_speech.mjs budget
 - **清空记录**：弹出系统确认框，点「确定」后提示「学习记录已清空」，复习曲线归零；**强制停止再打开仍为 0**；
 - **内置语音**（真机 arm64）：打开 `upgrade` 词卡（第二条例句无录音），**还没点任何按钮**，日志里已经有 `loaded kokoro in 842 ms` 和 `rendered 187,593 samples (7.82 s) in 3632 ms · rtf 0.46`；随后点第二个喇叭 → `spoke 187,593 samples (7.82 s) in 7799 ms`，**没有新的渲染日志**（说明命中预渲染缓存，点按零等待），播放时长与音频长度一致（尾巴没被切）；再点一次 → 3.20 s 处 `stopped early`，能打断且不崩溃；页面里 `typeof window.speechSynthesis === "undefined"`，确认完全没有走系统语音；
 - 导出两段样音核对音质：en-GB 3.60 s（峰值 0.903 / RMS 0.117）、en-US 2.96 s（峰值 0.715 / RMS 0.104），24 kHz 单声道，非静音；
+- **分享卡片**：点词卡右上角生成 1080×1440 PNG，落到 `下载/Word Atlas/`，随后自动弹出系统面板（标题 `Share 1 image`、预览缩略图正常、列表里有微信 / 邮件 / 抖音）；`logcat` 里 `Permission Denial` 与 `FileUriExposed` 计数为 0，返回键关掉面板后应用原样恢复；
 - `zipalign -c` 校验通过，`apksigner verify` 通过，`aapt2 dump` 确认无任何权限声明。
 
 > 小坑：用 `adb push` 覆盖「下载」里的备份后，文件管理器会显示「无内容」——`adb push` 不会通知 MediaStore。补一条 `am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE` 即可，正常用户通过系统导出 / 复制文件不会遇到。

@@ -1,4 +1,5 @@
 import type { Atlas } from "../atlas/types";
+import { loadOptional } from "../lib/canvasImage";
 import { saveBlob } from "../lib/native";
 import { sessionStats } from "../store/session";
 import { Rating } from "../store/srs";
@@ -7,14 +8,6 @@ import { toast } from "./Toast";
 
 const SERIF = '"Fraunces Variable", "Songti SC", "Noto Serif SC", Georgia, serif';
 const SANS = '-apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif';
-
-const load = (src: string) =>
-  new Promise<HTMLImageElement | null>((r) => {
-    const i = new Image();
-    i.onload = () => r(i);
-    i.onerror = () => r(null);
-    i.src = src;
-  });
 
 /** A 4:5 "today I learned" card: a mosaic of the session's illustrations plus first-try accuracy. */
 export async function shareSession(atlas: Atlas, s: ActiveSession) {
@@ -33,7 +26,7 @@ export async function shareSession(atlas: Atlas, s: ActiveSession) {
     const pad = 64;
     const gapPx = 16;
     const cell = (W - pad * 2 - gapPx * 2) / 3;
-    const imgs = await Promise.all(refs.map((r) => (atlas.img(r, "thumb") ? load(atlas.img(r, "thumb")!) : Promise.resolve(null))));
+    const imgs = await Promise.all(refs.map((r) => loadOptional(atlas.img(r, "thumb"))));
     refs.forEach((r, i) => {
       const x = pad + (i % 3) * (cell + gapPx);
       const y = pad + Math.floor(i / 3) * (cell + gapPx);
@@ -84,9 +77,11 @@ export async function shareSession(atlas: Atlas, s: ActiveSession) {
       await navigator.share({ files: [file] }).catch(() => null);
       return;
     }
-    const where = await saveBlob(blob, file.name);
-    toast(where === "shell" ? "成绩卡已保存到下载目录" : "成绩卡已保存", "ok");
-  } catch {
+    const where = await saveBlob(blob, file.name, { title: "今天点亮的星 · 词光 Word Atlas" });
+    // The shell announces the save itself and then opens the share sheet.
+    if (where === "browser") toast("成绩卡已保存", "ok");
+  } catch (error) {
+    console.error("session card failed:", error);
     toast("成绩卡生成失败", "warn");
   }
 }

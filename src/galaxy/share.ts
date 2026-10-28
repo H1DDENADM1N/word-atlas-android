@@ -53,8 +53,9 @@ export async function shareGalaxy(source: HTMLCanvasElement, lit: number, total:
       await navigator.share({ files: [file] }).catch(() => null);
       return;
     }
-    const where = await saveBlob(blob, file.name);
-    toast(where === "shell" ? "星图已保存到下载目录" : "星图已保存", "ok");
+    const where = await saveBlob(blob, file.name, { title: "我的词汇星图 · 词光 Word Atlas" });
+    // The shell announces the save itself and then opens the share sheet.
+    if (where === "browser") toast("星图已保存", "ok");
   } catch (error) {
     console.error("galaxy card failed:", error);
     toast("星图生成失败", "warn");
