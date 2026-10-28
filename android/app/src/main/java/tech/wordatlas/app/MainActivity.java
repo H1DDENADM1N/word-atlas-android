@@ -603,6 +603,19 @@ public class MainActivity extends Activity {
             backEnabled = enabled;
         }
 
+        /**
+         * The phone's own light/dark setting.
+         *
+         * Inside a WebView `prefers-color-scheme` follows the *app's* theme, and
+         * this app ships a dark platform theme so the launch window never
+         * flashes white — which meant "跟随系统" stayed dark on a phone in light
+         * mode. The page asks here instead, so system mode is the real system.
+         */
+        @JavascriptInterface
+        public String systemTheme() {
+            return systemDark() ? "dark" : "light";
+        }
+
         @JavascriptInterface
         public void openExternal(String url) {
             MainActivity.this.openExternal(url);
@@ -654,6 +667,35 @@ public class MainActivity extends Activity {
             web.onResume();
             web.resumeTimers();
         }
+        // The user may have switched the phone between light and dark while the
+        // app sat in the background; a uiMode change is not always delivered.
+        pushSystemTheme();
+    }
+
+    /**
+     * `uiMode` is in the activity's configChanges list, so the activity survives
+     * a light/dark switch and has to tell the page itself.
+     */
+    @Override
+    public void onConfigurationChanged(android.content.res.Configuration config) {
+        super.onConfigurationChanged(config);
+        pushSystemTheme();
+    }
+
+    private boolean systemDark() {
+        int mode = getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK;
+        return mode == android.content.res.Configuration.UI_MODE_NIGHT_YES;
+    }
+
+    private void pushSystemTheme() {
+        if (web == null) return;
+        final String value = systemDark() ? "dark" : "light";
+        web.post(new Runnable() {
+            @Override
+            public void run() {
+                if (web != null) web.evaluateJavascript("window.__waSystemTheme&&window.__waSystemTheme('" + value + "')", null);
+            }
+        });
     }
 
     @Override

@@ -144,16 +144,33 @@ export function Me({ privateAvailable }: { privateAvailable: boolean }) {
               </button>
             </div>
           </Field>
-          <Field label="外观">
-            <div className="segmented">
+          <Field label="外观" stack>
+            <div className="segmented segmented-wrap">
               {(
                 [
                   ["system", "跟随系统"],
                   ["light", "浅色"],
                   ["dark", "深色"],
+                  ["aurora", "极光"],
+                  ["starlight", "星光"],
                 ] as const
               ).map(([k, l]) => (
                 <button key={k} className={settings.theme === k ? "is-on" : ""} onClick={() => set({ theme: k })}>
+                  {l}
+                </button>
+              ))}
+            </div>
+          </Field>
+          <Field label="英文字体" hint="调整英文单词和例句的字体。">
+            <div className="segmented">
+              {(
+                [
+                  ["serif", "衬线"],
+                  ["sans", "无衬线"],
+                  ["classic", "复古"],
+                ] as const
+              ).map(([k, l]) => (
+                <button key={k} className={settings.wordFont === k ? "is-on" : ""} onClick={() => set({ wordFont: k })}>
                   {l}
                 </button>
               ))}
@@ -207,9 +224,9 @@ export function Me({ privateAvailable }: { privateAvailable: boolean }) {
   );
 }
 
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+function Field({ label, hint, stack, children }: { label: string; hint?: string; stack?: boolean; children: React.ReactNode }) {
   return (
-    <div className="field">
+    <div className={`field ${stack ? "field-stack" : ""}`}>
       <div>
         <b>{label}</b>
         {hint && <small>{hint}</small>}

@@ -3,6 +3,18 @@ import type { Accent } from "../atlas/types";
 import type { CardState, Grade } from "./srs";
 
 export type QuizKind = "meaning" | "picture" | "listen" | "spell";
+
+/** Light, dark, or one of the two night skies that repaint the whole palette. */
+export type Theme = "system" | "light" | "dark" | "aurora" | "starlight";
+/** Typeface for English words and example sentences. */
+export type WordFont = "serif" | "sans" | "classic";
+
+export const THEMES: Theme[] = ["system", "light", "dark", "aurora", "starlight"];
+export const WORD_FONTS: WordFont[] = ["serif", "sans", "classic"];
+/** The two themes that are dark at heart but repaint every pigment. */
+export const SKINS: Theme[] = ["aurora", "starlight"];
+export const isSkin = (t: Theme): t is "aurora" | "starlight" => SKINS.includes(t);
+
 export type Step = { id: string; kind: "intro" } | { id: string; kind: QuizKind; retry?: boolean; options?: string[] };
 
 export interface ActiveSession {
@@ -51,7 +63,8 @@ export interface Settings {
   autoplay: boolean;
   dailyNew: number;
   retention: number;
-  theme: "system" | "light" | "dark";
+  theme: Theme;
+  wordFont: WordFont;
   sfx: boolean;
   spell: boolean;
   startLevel: number;
@@ -68,6 +81,7 @@ export const defaultSettings: Settings = {
   dailyNew: 10,
   retention: 0.9,
   theme: "dark",
+  wordFont: "serif",
   sfx: true,
   spell: true,
   startLevel: 0,
@@ -164,7 +178,8 @@ export function sanitizeSettings(v: unknown): Settings {
   if (typeof v.autoplay === "boolean") s.autoplay = v.autoplay;
   if (num(v.dailyNew, 0, 100)) s.dailyNew = Math.round(v.dailyNew as number);
   if (num(v.retention, 0.7, 0.97)) s.retention = v.retention as number;
-  if (v.theme === "system" || v.theme === "light" || v.theme === "dark") s.theme = v.theme;
+  if (THEMES.includes(v.theme as Theme)) s.theme = v.theme as Theme;
+  if (WORD_FONTS.includes(v.wordFont as WordFont)) s.wordFont = v.wordFont as WordFont;
   if (typeof v.sfx === "boolean") s.sfx = v.sfx;
   if (typeof v.spell === "boolean") s.spell = v.spell;
   if (num(v.startLevel, 0, 5)) s.startLevel = Math.round(v.startLevel as number);

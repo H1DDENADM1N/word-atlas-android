@@ -6,6 +6,12 @@ import { toast } from "./Toast";
 const SERIF = '"Fraunces Variable", "Songti SC", "Noto Serif SC", Georgia, serif';
 const SANS = '-apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif';
 
+/** Whatever 英文字体 the reader picked, so the card matches the word card. */
+function wordFace() {
+  const v = getComputedStyle(document.documentElement).getPropertyValue("--word-face").trim();
+  return v || SERIF;
+}
+
 function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number) {
   const tokens = /[一-鿿]/.test(text) ? Array.from(text) : text.split(/(\s+)/);
   const lines: string[] = [];
@@ -59,9 +65,10 @@ export async function renderWordCard(atlas: Atlas, e: Entry) {
   }
   ctx.restore();
 
+  const face = wordFace();
   let y = pad + art * 0.78 + 120;
   ctx.fillStyle = "#1E2640";
-  ctx.font = `600 ${e.w.length > 12 ? 92 : 120}px ${SERIF}`;
+  ctx.font = `600 ${e.w.length > 12 ? 92 : 120}px ${face}`;
   ctx.fillText(e.w, pad, y);
   y += 62;
   ctx.font = `400 34px ${SANS}`;
@@ -80,7 +87,7 @@ export async function renderWordCard(atlas: Atlas, e: Entry) {
   ctx.fillText(e.senses.slice(0, 2).map((s) => s.zh).join("；"), pad + posW, y);
   y += 76;
   if (e.ex[0]) {
-    ctx.font = `italic 400 36px ${SERIF}`;
+    ctx.font = `italic 400 36px ${face}`;
     ctx.fillStyle = "#3C4560";
     for (const line of wrap(ctx, `“${e.ex[0].en}”`, art).slice(0, 3)) {
       ctx.fillText(line, pad, y);

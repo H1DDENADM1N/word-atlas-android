@@ -29,3 +29,13 @@ test("rejects other versions and unknown settings", () => {
   assert.equal(s.theme, "dark");
   assert.equal(s.retention, 0.9);
 });
+
+test("accepts the night skies and the three English faces", () => {
+  assert.equal(sanitizeSettings({ theme: "aurora" }).theme, "aurora");
+  assert.equal(sanitizeSettings({ theme: "starlight" }).theme, "starlight");
+  assert.equal(sanitizeSettings({ theme: "sepia" }).theme, "dark");
+  assert.equal(sanitizeSettings({ wordFont: "sans" }).wordFont, "sans");
+  assert.equal(sanitizeSettings({ wordFont: "classic" }).wordFont, "classic");
+  assert.equal(sanitizeSettings({ wordFont: "comic" }).wordFont, "serif");
+  assert.equal(sanitizeSettings({}).wordFont, "serif");
+});

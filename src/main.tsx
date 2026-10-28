@@ -1,10 +1,15 @@
 import "@fontsource-variable/fraunces/opsz.css";
 import "@fontsource-variable/fraunces/opsz-italic.css";
+import "@fontsource-variable/source-serif-4/opsz.css";
+import "@fontsource-variable/source-serif-4/opsz-italic.css";
+import "@fontsource-variable/atkinson-hyperlegible-next/index.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
-import { installBackHandler, isShell } from "./lib/native";
+import { installBackHandler, installSystemTheme, isShell } from "./lib/native";
 import "./styles/app.css";
+
+installSystemTheme();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

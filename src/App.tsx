@@ -6,6 +6,7 @@ import type { Atlas } from "./atlas/types";
 import { REPO_URL } from "./config";
 import { closeWord, currentLocation, go, openWord, useLocation, type Route } from "./lib/router";
 import { setChrome } from "./lib/native";
+import { chromeColor, useThemeSettings } from "./lib/theme";
 import { AtlasPage } from "./pages/Atlas";
 import { About } from "./pages/About";
 import { Learn } from "./pages/Learn";
@@ -14,7 +15,7 @@ import { Onboarding } from "./pages/Onboarding";
 import { Practice } from "./pages/Practice";
 import { Today } from "./pages/Today";
 import { cue } from "./lib/sound";
-import { store, useStore } from "./store/store";
+import { isSkin, store, useStore } from "./store/store";
 import { EntryView } from "./ui/EntryView";
 import { AmbienceController, AmbiencePicker } from "./ui/Ambience";
 import { Logo } from "./ui/Logo";
@@ -31,18 +32,22 @@ const NAV: { page: Route["page"]; label: string; icon: typeof Compass }[] = [
 ];
 
 function useTheme() {
-  const theme = useStore((s) => s.settings.theme);
+  const { theme, mode } = useThemeSettings();
+  const font = useStore((s) => s.settings.wordFont);
   useEffect(() => {
     const root = document.documentElement;
-    if (theme === "system") root.removeAttribute("data-theme");
-    else root.setAttribute("data-theme", theme);
-    const dark = theme === "dark" || (theme === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
-    const color = dark ? "#0D1120" : "#F6F1E7";
+    // Always explicit: "system" has already been resolved against the phone's
+    // setting, and an explicit attribute overrides the WebView's own idea of it.
+    root.setAttribute("data-theme", mode);
+    if (isSkin(theme)) root.setAttribute("data-skin", theme);
+    else root.removeAttribute("data-skin");
+    root.setAttribute("data-font", font);
+    const color = chromeColor(theme, mode);
     document.querySelector('meta[name="theme-color"]')?.setAttribute("content", color);
     // Keep the Android system bars in step with the page.
-    setChrome(color, dark);
-  }, [theme]);
-  return theme;
+    setChrome(color, mode === "dark");
+  }, [theme, mode, font]);
+  return mode;
 }
 
 export default function App() {
@@ -98,7 +103,7 @@ export default function App() {
 function Shell({ privateAvailable }: { privateAvailable: boolean }) {
   const { route, word } = useLocation();
   const onboarded = useStore((s) => s.settings.onboarded);
-  const theme = useStore((s) => s.settings.theme);
+  const { mode } = useThemeSettings();
   const [palette, setPalette] = useState(false);
   const [splash, setSplash] = useState(shouldShowSplash);
   const focus = route.page === "learn";
@@ -123,7 +128,7 @@ function Shell({ privateAvailable }: { privateAvailable: boolean }) {
     if (!word) window.scrollTo({ top: 0 });
   }, [route.page]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const dark = theme === "dark" || (theme === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
+  const dark = mode === "dark";
 
   return (
     <div className={`app ${focus ? "is-focus" : ""}`}>

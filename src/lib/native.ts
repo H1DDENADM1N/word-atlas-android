@@ -16,6 +16,8 @@ interface Shell {
   stopSpeak(): void;
   setChrome(color: string, dark: boolean): void;
   setBackEnabled(enabled: boolean): void;
+  /** "light" | "dark" — the phone's own setting, not the app theme. */
+  systemTheme?(): string;
   openExternal(url: string): void;
   toast(message: string): void;
   version(): string;
@@ -26,6 +28,7 @@ declare global {
     WordAtlasAndroid?: Shell;
     __waBack?: () => boolean;
     __waSpeakDone?: () => void;
+    __waSystemTheme?: (theme: string) => void;
   }
 }
 
@@ -134,6 +137,53 @@ export function shellStopSpeak() {
  */
 export function shellPrepare(text: string, accent: "uk" | "us", rate: number) {
   shell?.prepare(text, accent === "uk" ? "en-GB" : "en-US", rate);
+}
+
+/* ---------- system appearance ---------- */
+
+/**
+ * Whether the operating system is in dark mode.
+ *
+ * A WebView answers `prefers-color-scheme` from the *app's* theme, and the APK
+ * ships a dark platform theme so the launch window never flashes white. Left to
+ * the media query, "跟随系统" therefore stayed dark on a phone in light mode.
+ * The shell is asked first; the browser falls back to the media query.
+ */
+function readSystemDark(): boolean {
+  try {
+    const v = shell?.systemTheme?.();
+    if (v === "dark") return true;
+    if (v === "light") return false;
+  } catch {
+    /* older shell without the method */
+  }
+  return typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches;
+}
+
+let systemDark = typeof window === "undefined" ? false : readSystemDark();
+const themeListeners = new Set<() => void>();
+
+function publishSystemDark(next: boolean) {
+  if (next === systemDark) return;
+  systemDark = next;
+  themeListeners.forEach((l) => l());
+}
+
+export function getSystemDark() {
+  return systemDark;
+}
+
+export function subscribeSystemTheme(listener: () => void) {
+  themeListeners.add(listener);
+  return () => themeListeners.delete(listener);
+}
+
+/** Wires the shell's push and the browser's own `change` event. */
+export function installSystemTheme() {
+  window.__waSystemTheme = (theme) => publishSystemDark(theme === "dark");
+  if (typeof matchMedia === "function") {
+    matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => publishSystemDark(readSystemDark()));
+  }
 }
 
 /* ---------- chrome ---------- */

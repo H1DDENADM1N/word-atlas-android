@@ -18,14 +18,30 @@
     <link rel="manifest" href="%BASE_URL%manifest.webmanifest" />
     <link rel="preload" href="%BASE_URL%atlas/index.json" as="fetch" crossorigin="anonymous" />
     <script>
-      // Apply the saved theme (dark by default) before first paint.
+      // Paint the saved palette before the first frame: theme + night sky +
+      // English face. Kept in step with src/lib/theme.ts.
       (function () {
-        var t = "dark";
+        var d = document.documentElement;
+        var s = {};
         try {
-          var s = JSON.parse(localStorage.getItem("word-atlas:settings") || "{}");
-          if (s.theme) t = s.theme;
+          s = JSON.parse(localStorage.getItem("word-atlas:settings") || "{}") || {};
         } catch (e) {}
-        if (t !== "system") document.documentElement.setAttribute("data-theme", t);
+        var t = s.theme || "dark";
+        var skin = t === "aurora" || t === "starlight";
+        var mode = t;
+        if (t === "system") {
+          // A WebView answers prefers-color-scheme from the app's own theme, so
+          // ask the shell for the phone's real setting.
+          mode = null;
+          try {
+            var v = window.WordAtlasAndroid && window.WordAtlasAndroid.systemTheme();
+            if (v === "dark" || v === "light") mode = v;
+          } catch (e) {}
+          if (!mode) mode = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        }
+        d.setAttribute("data-theme", skin ? "dark" : mode);
+        if (skin) d.setAttribute("data-skin", t);
+        d.setAttribute("data-font", s.wordFont || "serif");
       })();
     </script>
   </head>

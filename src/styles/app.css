@@ -33,6 +33,10 @@
   --serif: "Fraunces Variable", "Songti SC", "STSong", "Noto Serif SC", "Source Han Serif SC", Georgia, serif;
   --sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Segoe UI", "Microsoft YaHei", "Noto Sans SC", Roboto, sans-serif;
   --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  /* English words and example sentences: 衬线 / 无衬线 / 复古, see [data-font]. */
+  --word-face: "Source Serif 4 Variable", "Songti SC", "STSong", Georgia, serif;
+  --word-opsz: 20;
+  --word-opsz-lg: 48;
   --r-sm: 10px;
   --r: 16px;
   --r-lg: 24px;
@@ -104,6 +108,18 @@
   --shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 20px 40px -24px rgba(0, 0, 0, 0.7);
   --shadow-lg: 0 30px 80px -20px rgba(0, 0, 0, 0.75);
   color-scheme: dark;
+}
+
+/* English typeface: the headword, its example sentences and collocations. */
+:root[data-font="sans"] {
+  --word-face: "Atkinson Hyperlegible Next Variable", var(--sans);
+  --word-opsz: 0;
+  --word-opsz-lg: 0;
+}
+:root[data-font="classic"] {
+  --word-face: var(--serif);
+  --word-opsz: 24;
+  --word-opsz-lg: 120;
 }
 
 /* ---------- base ---------- */
@@ -506,6 +522,26 @@ code {
   color: var(--ink);
   font-weight: 600;
   box-shadow: var(--shadow-sm);
+}
+/* Five choices (跟随系统/浅色/深色/极光/星光) wrap onto a second row instead of
+   scrolling sideways out of sight. */
+.segmented-wrap {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  border-radius: 20px;
+  row-gap: 3px;
+  overflow: visible;
+}
+.field-stack {
+  display: grid;
+  gap: 10px;
+}
+.field-stack .segmented {
+  width: 100%;
+}
+.field-stack .segmented button {
+  flex: 1;
+  padding: 0 8px;
 }
 .segmented-icons button {
   width: 36px;
@@ -958,12 +994,12 @@ code {
   margin-right: 40px;
 }
 .headword {
-  font-family: var(--serif);
+  font-family: var(--word-face);
   font-weight: 600;
   font-size: clamp(40px, 7vw, 64px);
   line-height: 1.02;
   letter-spacing: -0.025em;
-  font-variation-settings: "opsz" 144;
+  font-variation-settings: "opsz" var(--word-opsz-lg);
   margin: 8px 0 12px;
   overflow-wrap: anywhere;
 }
@@ -1071,9 +1107,9 @@ code {
 }
 .senses .en {
   grid-column: 2;
-  font: italic 400 15px/1.45 var(--serif);
+  font: italic 400 15px/1.45 var(--word-face);
   color: var(--ink-3);
-  font-variation-settings: "opsz" 14;
+  font-variation-settings: "opsz" var(--word-opsz);
 }
 .block {
   margin-top: 26px;
@@ -1091,8 +1127,8 @@ code {
   gap: 18px;
 }
 .ex-en {
-  font: 400 19px/1.5 var(--serif);
-  font-variation-settings: "opsz" 24;
+  font: 400 19px/1.5 var(--word-face);
+  font-variation-settings: "opsz" var(--word-opsz);
   color: var(--ink);
   text-wrap: pretty;
 }
@@ -1129,8 +1165,8 @@ code {
   display: grid;
 }
 .collocations span {
-  font: 500 16px/1.35 var(--serif);
-  font-variation-settings: "opsz" 18;
+  font: 500 16px/1.35 var(--word-face);
+  font-variation-settings: "opsz" var(--word-opsz);
 }
 .collocations small {
   color: var(--ink-3);
@@ -4123,4 +4159,193 @@ a:hover .mark-needle,
 }
 .streak-panel .mini-stats div:first-child dd {
   color: var(--ochre);
+}
+
+/* ---------- English typeface ---------- */
+/* Every place an English word or sentence is set, so 英文字体 is one switch. */
+.tile-word,
+.row-word,
+.wotd-word,
+.wotd-ex,
+.palette-word,
+.cloze,
+.feedback-ex {
+  font-family: var(--word-face);
+}
+
+/* ---------- night skies: 极光 / 星光 ----------
+   Both are dark palettes that repaint every pigment, so they hang off
+   data-theme="dark" plus a data-skin name. Appended last on purpose: the
+   selectors tie with the dark-theme rules above, and order breaks the tie. */
+
+:root[data-skin="aurora"] {
+  --paper: #05060f;
+  --paper-2: #171d35;
+  --paper-3: #202942;
+  --card: #0f1328;
+  --card-2: #181e3c;
+  --ink: #eef2ff;
+  --ink-2: #c4cbe6;
+  --ink-3: #aeb8db;
+  --ink-4: #565e80;
+  --line: rgba(160, 190, 255, 0.1);
+  --line-strong: rgba(160, 190, 255, 0.2);
+  --terra: #ff7b88;
+  --terra-ink: #ff9ca6;
+  --terra-soft: rgba(255, 123, 136, 0.16);
+  --ochre: #ffd166;
+  --ochre-soft: rgba(255, 209, 102, 0.16);
+  --sage: #4fe8b8;
+  --sage-ink: #8af3d2;
+  --sage-soft: rgba(79, 232, 184, 0.14);
+  --sky: #78c6ff;
+  --sky-soft: rgba(120, 198, 255, 0.15);
+  --plum: #b48cff;
+  --glow: rgba(79, 232, 184, 0.1);
+  --mark: rgba(255, 209, 102, 0.3);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow: 0 1px 0 rgba(200, 220, 255, 0.06) inset, 0 24px 48px -28px rgba(0, 0, 0, 0.9);
+  --shadow-lg: 0 30px 90px -24px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(160, 190, 255, 0.06);
+  color-scheme: dark;
+}
+
+:root[data-skin="aurora"] body {
+  background:
+    radial-gradient(1px 1px at 12% 18%, rgba(230, 240, 255, 0.55), transparent 60%),
+    radial-gradient(1px 1px at 68% 42%, rgba(230, 240, 255, 0.4), transparent 60%),
+    radial-gradient(1.5px 1.5px at 38% 76%, rgba(255, 230, 190, 0.45), transparent 60%),
+    radial-gradient(1px 1px at 86% 88%, rgba(230, 240, 255, 0.35), transparent 60%),
+    var(--paper);
+  background-size: 260px 260px, 340px 340px, 420px 420px, 300px 300px, auto;
+}
+/* The ribbons drift behind everything; the content sits on #root at z-index 1. */
+:root[data-skin="aurora"] body::after {
+  content: "";
+  position: fixed;
+  inset: -20vmax;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(40vmax 14vmax at 32% 30%, rgba(79, 232, 184, 0.34), transparent 70%),
+    radial-gradient(36vmax 13vmax at 70% 26%, rgba(110, 150, 255, 0.3), transparent 70%),
+    radial-gradient(30vmax 18vmax at 55% 40%, rgba(180, 120, 255, 0.2), transparent 70%),
+    radial-gradient(60vmax 26vmax at 50% 100%, rgba(40, 80, 180, 0.26), transparent 70%);
+  filter: blur(24px) saturate(1.2);
+  animation: aurora-drift 38s ease-in-out infinite alternate;
+}
+@keyframes aurora-drift {
+  0% {
+    transform: translate3d(-4%, 0, 0) rotate(-2deg) scaleY(1);
+    filter: blur(24px) saturate(1.2) hue-rotate(0deg);
+  }
+  50% {
+    transform: translate3d(3%, 2%, 0) rotate(1deg) scaleY(1.12);
+  }
+  100% {
+    transform: translate3d(5%, -1%, 0) rotate(3deg) scaleY(0.95);
+    filter: blur(24px) saturate(1.3) hue-rotate(-25deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  :root[data-skin="aurora"] body::after {
+    animation: none;
+  }
+}
+:root[data-skin="aurora"] .topbar {
+  background: color-mix(in oklab, var(--paper) 68%, transparent);
+}
+:root[data-skin="aurora"] .panel {
+  border-color: rgba(160, 190, 255, 0.12);
+}
+:root[data-skin="aurora"] .btn-primary {
+  background: var(--sage-ink);
+  color: var(--paper);
+  box-shadow: var(--shadow-sm);
+}
+:root[data-skin="aurora"] .btn-primary:hover:not(:disabled) {
+  background: var(--sage);
+}
+
+:root[data-skin="starlight"] {
+  --paper: #06080f;
+  --paper-2: #10142a;
+  --paper-3: #181d36;
+  --card: #0d1123;
+  --card-2: #12172e;
+  --ink: #f3ecdf;
+  --ink-2: #cdc5b6;
+  --ink-3: #9a958d;
+  --ink-4: #4c4e63;
+  --line: rgba(243, 236, 223, 0.07);
+  --line-strong: rgba(243, 236, 223, 0.12);
+  --terra: #e3957a;
+  --terra-ink: #f0b39d;
+  --terra-soft: rgba(227, 149, 122, 0.14);
+  --ochre: #e8c48a;
+  --ochre-soft: rgba(232, 196, 138, 0.13);
+  --sage: #a3c19b;
+  --sage-ink: #c3dbbb;
+  --sage-soft: rgba(163, 193, 155, 0.13);
+  --sky: #a0b9d8;
+  --sky-soft: rgba(160, 185, 216, 0.13);
+  --plum: #c4a3c9;
+  --glow: rgba(232, 196, 138, 0.08);
+  --mark: rgba(232, 196, 138, 0.24);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --shadow: 0 1px 0 rgba(243, 236, 223, 0.03) inset, 0 24px 48px -30px rgba(0, 0, 0, 0.9);
+  --shadow-lg: 0 40px 90px -36px rgba(0, 0, 0, 0.9);
+  color-scheme: dark;
+}
+
+/* A deeper sky than plain dark: brighter stars, a warm horizon and a slow
+   twinkle layer, so 星光 reads differently from 深色 at a glance. */
+:root[data-skin="starlight"] body {
+  background:
+    radial-gradient(130% 55% at 50% 118%, rgba(122, 86, 74, 0.26), transparent 62%),
+    radial-gradient(70% 40% at 22% -6%, rgba(90, 120, 200, 0.14), transparent 70%),
+    radial-gradient(1px 1px at 12% 18%, rgba(243, 236, 223, 0.6), transparent 60%),
+    radial-gradient(1px 1px at 68% 42%, rgba(243, 236, 223, 0.45), transparent 60%),
+    radial-gradient(1.5px 1.5px at 38% 76%, rgba(255, 236, 205, 0.5), transparent 60%),
+    radial-gradient(1px 1px at 86% 88%, rgba(243, 236, 223, 0.38), transparent 60%),
+    linear-gradient(180deg, #05060e 0%, #080a1a 52%, #100d1e 100%);
+  background-size: auto, auto, 260px 260px, 340px 340px, 420px 420px, 300px 300px, auto;
+  background-attachment: fixed;
+}
+:root[data-skin="starlight"] body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(2px 2px at 18% 12%, rgba(255, 250, 240, 0.95), transparent 60%),
+    radial-gradient(1px 1px at 72% 22%, rgba(255, 250, 240, 0.8), transparent 60%),
+    radial-gradient(1.5px 1.5px at 42% 48%, rgba(255, 240, 215, 0.75), transparent 60%),
+    radial-gradient(1px 1px at 88% 62%, rgba(255, 250, 240, 0.7), transparent 60%),
+    radial-gradient(2px 2px at 30% 78%, rgba(255, 245, 230, 0.85), transparent 60%),
+    radial-gradient(1px 1px at 58% 90%, rgba(255, 250, 240, 0.6), transparent 60%);
+  background-size: 180px 180px, 230px 230px, 160px 160px, 260px 260px, 200px 200px, 170px 170px;
+  animation: starlight-twinkle 9s ease-in-out infinite alternate;
+}
+@keyframes starlight-twinkle {
+  from {
+    opacity: 0.55;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  :root[data-skin="starlight"] body::after {
+    animation: none;
+    opacity: 0.8;
+  }
+}
+:root[data-skin="starlight"] .panel {
+  background: rgba(12, 16, 33, 0.78);
+  border-color: transparent;
+  box-shadow: 0 0 0 1px rgba(243, 236, 223, 0.045);
+}
+:root[data-skin="starlight"] .topbar {
+  background: color-mix(in oklab, var(--paper) 55%, transparent);
 }
