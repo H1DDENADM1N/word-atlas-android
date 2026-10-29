@@ -18,6 +18,9 @@ interface Shell {
   setBackEnabled(enabled: boolean): void;
   /** "light" | "dark" — the phone's own setting, not the app theme. */
   systemTheme?(): string;
+  /** Raise / lower the soft keyboard (the typing stages use an invisible field). */
+  showKeyboard?(): void;
+  hideKeyboard?(): void;
   openExternal(url: string): void;
   toast(message: string): void;
   version(): string;

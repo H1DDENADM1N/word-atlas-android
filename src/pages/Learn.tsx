@@ -6,6 +6,7 @@ import { play, stopAudio } from "../lib/audio";
 import { burst } from "../lib/burst";
 import { cue } from "../lib/sound";
 import { go } from "../lib/router";
+import { focusField, revealField } from "../lib/keyboard";
 import { gap, normalize } from "../lib/text";
 import { answer, advance, buildSession, gradeFor, sessionStats } from "../store/session";
 import { Rating } from "../store/srs";
@@ -76,7 +77,7 @@ function Runner({ session }: { session: ActiveSession }) {
         </span>
         <AmbiencePicker />
       </header>
-      <main className="learn-stage" key={`${session.id}-${session.index}`}>
+      <main className={`learn-stage ${step.kind === "intro" ? "is-intro" : "is-quiz"}`} key={`${session.id}-${session.index}`}>
         {step.kind === "intro" ? <Intro step={step} /> : <Quiz step={step as Step & { kind: QuizKind }} session={session} />}
       </main>
     </div>
@@ -223,29 +224,34 @@ function Quiz({ step, session }: { step: Step & { kind: QuizKind }; session: Act
         {step.kind === "spell" && <SpellPrompt entry={entry} refw={ref} hints={hints} />}
       </section>
 
-      {step.kind === "spell" ? (
-        <SpellInput entry={entry} pending={pending} hints={hints} onHint={() => setHints((h) => Math.min(entry.w.length - 1, h + 1))} onSubmit={(v) => submit(v, normalize(v) === normalize(entry.w))} />
-      ) : (
-        <ul className={`options ${step.kind === "meaning" ? "options-zh" : "options-en"}`}>
-          {options.map((o, i) => {
-            const isAnswer = o.id === ref.id;
-            const chosen = pending?.value === o.id;
-            const cls = pending ? (isAnswer ? "is-answer" : chosen ? "is-chosen" : "is-dim") : "";
-            return (
-              <li key={o.id}>
-                <button className={`option ${cls}`} data-option={o.id} onClick={() => submit(o.id, isAnswer)} disabled={!!pending}>
-                  <kbd>{i + 1}</kbd>
-                  <span lang={step.kind === "meaning" ? "zh" : "en"}>{step.kind === "meaning" ? o.zh : o.word}</span>
-                  {pending && isAnswer && <Check size={20} className="option-mark" />}
-                  {pending && chosen && !isAnswer && <X size={20} className="option-mark" />}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      {/* The answer zone keeps a steady footprint: on a phone the options are
+          replaced by the feedback card instead of being covered by it, so all
+          four choices and the "继续" button share one screen. */}
+      <div className={`answer-zone ${pending ? "is-answered" : ""}`}>
+        {step.kind === "spell" ? (
+          <SpellInput entry={entry} pending={pending} hints={hints} onHint={() => setHints((h) => Math.min(entry.w.length - 1, h + 1))} onSubmit={(v) => submit(v, normalize(v) === normalize(entry.w))} />
+        ) : (
+          <ul className={`options ${step.kind === "meaning" ? "options-zh" : "options-en"}`}>
+            {options.map((o, i) => {
+              const isAnswer = o.id === ref.id;
+              const chosen = pending?.value === o.id;
+              const cls = pending ? (isAnswer ? "is-answer" : chosen ? "is-chosen" : "is-dim") : "";
+              return (
+                <li key={o.id}>
+                  <button className={`option ${cls}`} data-option={o.id} onClick={() => submit(o.id, isAnswer)} disabled={!!pending}>
+                    <kbd>{i + 1}</kbd>
+                    <span lang={step.kind === "meaning" ? "zh" : "en"}>{step.kind === "meaning" ? o.zh : o.word}</span>
+                    {pending && isAnswer && <Check size={20} className="option-mark" />}
+                    {pending && chosen && !isAnswer && <X size={20} className="option-mark" />}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
 
-      {pending && <Feedback entry={entry} refw={ref} correct={pending.correct} onNext={next} />}
+        {pending && <Feedback entry={entry} refw={ref} correct={pending.correct} onNext={next} />}
+      </div>
     </div>
   );
 }
@@ -282,7 +288,8 @@ function SpellInput({ entry, pending, hints, onHint, onSubmit }: { entry: Entry;
   const prefix = target.slice(0, hints);
   useEffect(() => {
     if (hints && !normalize(value).startsWith(normalize(prefix))) setValue(prefix);
-    input.current?.focus();
+    focusField(input.current);
+    revealField(input.current);
   }, [hints]); // eslint-disable-line react-hooks/exhaustive-deps
   const shown = pending ? pending.value : value;
   return (

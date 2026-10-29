@@ -141,6 +141,50 @@ WebView 侧还关闭了 `file` 域的脚本访问（`setAllowFileAccessFromFileU
 > 播放收尾也有坑：`AudioTrack` 只缓冲约 0.7 s，写完就 `release()` 会把最后一个词切掉（实测 7.82 s 的音频只播了 7.11 s）。现在用 `getPlaybackHeadPosition()` 等缓冲播完再释放。
 
 
+## 学习界面：一屏之内
+
+学习页是唯一一个「必须一屏看完」的界面——题干、四个选项和「继续」要同时在场，键盘弹起时输入区也不能被顶到看不见的地方。
+
+原来的结构是「题干 `flex:1` + 选项 + 吸底反馈」：反馈用 `position:sticky; bottom:0` 贴住视口底边，作答后直接盖住后两个选项；图片题的插图 `min(100%, 300px)` 又把题干撑到 416 px，363×640 的机器上第四个选项落在首屏之外。真机实测（1272×2800 @560dpi，即 363×800 CSS px）：
+
+| 场景 | 改前 | 改后 |
+| :--- | :--- | :--- |
+| 图片题（4 选项） | 文档高 887 px，需下滑 247 px | `scrollHeight == innerHeight` |
+| 听音题 | 溢出 60 px | 0 |
+| 作答后的反馈卡 | 覆盖选项区 146–482 px | 顶替选项，覆盖 0 |
+
+现在的分层：
+
+| 层 | 规则 | 作用 |
+| :--- | :--- | :--- |
+| `.learn` | 手机上 `height:100dvh; overflow:hidden`（结算页 `.summary` 除外） | 会话锁在一屏，页面本身不滚 |
+| `.learn-stage` | `flex:1; min-height:0` | 允许子元素真正收缩，而不是把父级撑开 |
+| `.prompt` | `flex:1; min-height:0; overflow:hidden` | 只吃剩下的高度，空间不够先压题干 |
+| 插图 / 听音球 / 拼写配图 | `min(300px, 26dvh)` / `19dvh` / `15dvh` | 先缩图，不挤选项 |
+| `.answer-zone` | `flex:none` | 选项与反馈共用同一个固定槽位 |
+| 作答后 | `.answer-zone.is-answered .options { display: none }` | 反馈卡顶替选项，不叠加、不遮挡 |
+
+桌面端不受影响：`.learn` 仍是 `min-height`，选项维持两列，反馈卡与选项并排。
+
+`.summary` 必须排除在外——第一版把 `height:100dvh` 加在 `.learn` 上，结算页跟着被锁死，「完成」按钮永远点不到（真机上 swipe 也不动）。现在只有 `.learn:not(.summary)` 固定高度。
+
+### 排查记录：真机上点屏幕弹不出键盘
+
+现象：打字练习进去后点文字区域毫无反应，输入法不弹；而从「搜索」进去的输入框是正常的。
+
+原因不在键盘，在焦点：`TypingRound` 与 `SpellInput` 都用**透明 `<input>`** 接管输入（`position:absolute; opacity:0`），并带 `autoFocus`。它一挂载就已经是 `document.activeElement`，用户点屏幕时执行的 `input.focus()` 因此是一次空操作——没有 `focus` 事件，WebView 也就不会请求输入法。搜索结果框是首次聚焦，所以正常。
+
+三处一起改：
+
+1. `src/lib/keyboard.ts` 的 `focusField()`：已经聚焦时先 `blur()` 再 `focus()`，制造一次真实的焦点变化；随后 `revealField()` 在键盘动画结束后把输入区滚进可视范围。
+2. 原生桥接补 `showKeyboard()` / `hideKeyboard()`（`InputMethodManager`），让唤起输入法不再依赖上面那个时序技巧；网页版没有桥接时自动退回纯 JS 路径。
+3. `viewport` 加 `interactive-widget=resizes-content`。WebView 本来就有 `adjustResize`，布局视口会跟着键盘缩小；补这一条是让浏览器版行为一致。
+
+`adjustResize` + `100dvh` 意味着键盘弹起时整个会话页按新高度重排：拼写步骤在 352 px 高的视口里仍能同时放下配图、题干、字母格和两个按钮。
+
+> 顺带把打字练习页在手机上改成全屏 fixed 覆盖层（`.practice.typing`）。它原先待在 tabbar 与 footer 之间，键盘一弹页面就滚，目标词正好落在键盘后面。
+
+
 ## 排查记录：导入备份 / 清空记录「无效」
 
 真机上这两个按钮看起来毫无反应，根因不在业务代码，而在壳层漏配了 `WebChromeClient`：
@@ -209,6 +253,8 @@ async function illustration(src: string | null) {
 
 真机上建议确认：首屏、图鉴网格、词卡翻页、英美发音、星图（WebGL2）、返回键、分享卡片保存位置、深浅色切换、导出 / 导入备份、清空记录，以及**没有录音的那条例句的朗读**。
 
+学习页的「一屏」可以先在桌面上量，不必每次都装包：用 Playwright 按设备视口（363×640、360×600、363×800）跑完一整轮，比较 `document.documentElement.scrollHeight` 与 `innerHeight`，再判断反馈卡与选项区的矩形是否相交。键盘态直接把视口高度改成 55%（相当于 `adjustResize` 之后的高度）重量一次，就能看出输入区会不会被顶出去。
+
 语音可以脚本化验证。用调试开关启动应用，就能通过 Chrome DevTools 直接驱动页面：
 
 ```bash
@@ -234,6 +280,14 @@ node scripts/android/verify_speech.mjs budget
 - 导出两段样音核对音质：en-GB 3.60 s（峰值 0.903 / RMS 0.117）、en-US 2.96 s（峰值 0.715 / RMS 0.104），24 kHz 单声道，非静音；
 - **分享卡片**：点词卡右上角生成 1080×1440 PNG，落到 `下载/Word Atlas/`，随后自动弹出系统面板（标题 `Share 1 image`、预览缩略图正常、列表里有微信 / 邮件 / 抖音）；`logcat` 里 `Permission Denial` 与 `FileUriExposed` 计数为 0，返回键关掉面板后应用原样恢复；
 - `zipalign -c` 校验通过，`apksigner verify` 通过，`aapt2 dump` 确认无任何权限声明。
+
+手机学习界面的复验（Android 16，OnePlus PLR110，1272×2800 @560dpi，即 363×800 CSS px）：
+
+- 图片题、听音题、词义题四种形态下，四个选项与「继续」全部落在首屏，页面不滚；
+- 作答后反馈卡出现在选项原来的位置，不再压住任何选项；
+- 拼写步骤在键盘弹起后仍同时显示配图、题干、字母格与「提示字母 / 确认」；
+- 打字练习进入即自动唤起输入法（`dumpsys input_method` 的 `mInputShown=true`），目标词与中文释义都在键盘上方，连续输入 10 项不掉焦点；
+- 结算页可正常下滑到「完成」，此前被 `100dvh` 锁死的问题已修复。
 
 > 小坑：用 `adb push` 覆盖「下载」里的备份后，文件管理器会显示「无内容」——`adb push` 不会通知 MediaStore。补一条 `am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE` 即可，正常用户通过系统导出 / 复制文件不会遇到。
 

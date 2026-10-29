@@ -2,7 +2,11 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <!-- `resizes-content` makes the layout (and every dvh) follow the soft
+         keyboard, so the study screens can shrink instead of hiding the field
+         behind the IME. The APK's WebView already resizes with adjustResize;
+         this keeps the browser edition behaving the same way. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
     <meta name="theme-color" content="#0D1120" />
     <meta name="twitter:title" content="词光 · 一词一画，点亮雅思" />
     <meta name="twitter:image" content="https://0xlei.tech/words/brand/og-card.jpg" />

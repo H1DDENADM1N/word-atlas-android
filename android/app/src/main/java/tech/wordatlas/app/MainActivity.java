@@ -19,6 +19,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
+import android.view.inputmethod.InputMethodManager;
 import android.webkit.ConsoleMessage;
 import android.webkit.JavascriptInterface;
 import android.webkit.JsPromptResult;
@@ -601,6 +602,39 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public void setBackEnabled(boolean enabled) {
             backEnabled = enabled;
+        }
+
+        /**
+         * Raise the soft keyboard.
+         *
+         * <p>The typing stages keep an invisible {@code <input>} focused from the
+         * moment they mount, and a WebView answers {@code focus()} on an
+         * already-focused field with nothing — so tapping the stage left the
+         * page untypable. The page asks here instead of relying on that.
+         */
+        @JavascriptInterface
+        public void showKeyboard() {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    if (web == null) return;
+                    web.requestFocus();
+                    InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+                    if (imm != null) imm.showSoftInput(web, InputMethodManager.SHOW_IMPLICIT);
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public void hideKeyboard() {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    if (web == null) return;
+                    InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+                    if (imm != null) imm.hideSoftInputFromWindow(web.getWindowToken(), 0);
+                }
+            });
         }
 
         /**

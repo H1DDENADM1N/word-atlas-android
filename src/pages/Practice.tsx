@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { prefetch, useAtlas } from "../atlas/context";
 import type { Entry } from "../atlas/types";
 import { play, stopAudio } from "../lib/audio";
+import { focusField, revealField } from "../lib/keyboard";
 import { cue } from "../lib/sound";
 import { hashSeed, shuffle } from "../lib/text";
 import { clean, correctCharacterCount, same, typingDelta, typingMetrics } from "../lib/typing";
@@ -200,7 +201,13 @@ function TypingRound({ mode, entries, onExit, onAgain }: { mode: Mode; entries: 
           <b>{m.wpm}</b> WPM · <b>{m.accuracy}%</b>
         </span>
       </header>
-      <section className="typing-stage" onClick={() => input.current?.focus()}>
+      <section
+        className="typing-stage"
+        onClick={() => {
+          focusField(input.current);
+          revealField(input.current);
+        }}
+      >
         {mode === "word" && (
           <div className="typing-cue">
             <Illustration src={atlas.img(e)} word={e.w} topic={0} eager />
