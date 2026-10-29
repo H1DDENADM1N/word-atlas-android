@@ -1,8 +1,20 @@
 import { ArrowUpRight, Database, Github, Heart } from "lucide-react";
 import { useAtlas } from "../atlas/context";
 import { REPO_URL, UPSTREAM_SITE, UPSTREAM_URL } from "../config";
+import { shell } from "../lib/native";
 
 const BASE = import.meta.env.BASE_URL;
+
+/** The installed package version, or "" on the web where there is no package. */
+function installedVersion() {
+  try {
+    return shell?.version?.() ?? "";
+  } catch {
+    return "";
+  }
+}
+
+const VERSION = installedVersion();
 
 export function About() {
   const atlas = useAtlas();
@@ -109,6 +121,7 @@ export function About() {
       </div>
       <p className="colophon">
         <Heart size={14} /> 做给每一个在地铁里也想背两个词的人。
+        {VERSION && <span className="colophon-version">v{VERSION}</span>}
       </p>
     </div>
   );

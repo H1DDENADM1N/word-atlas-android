@@ -67,6 +67,8 @@ public class MainActivity extends Activity {
     private WebView web;
     private View splash;
     private boolean backEnabled;
+    /** Installed package version, handed to the page by {@link Bridge#version()}. */
+    private String versionName = "";
 
     /** Pending `<input type="file">` request from the page. */
     private ValueCallback<Uri[]> filePicker;
@@ -89,6 +91,8 @@ public class MainActivity extends Activity {
         Window window = getWindow();
         window.setStatusBarColor(BOOT_BG);
         window.setNavigationBarColor(BOOT_BG);
+
+        versionName = readVersionName();
 
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(BOOT_BG);
@@ -662,7 +666,7 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String version() {
-            return "1.0.0";
+            return versionName;
         }
     }
 
@@ -719,6 +723,20 @@ public class MainActivity extends Activity {
     private boolean systemDark() {
         int mode = getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK;
         return mode == android.content.res.Configuration.UI_MODE_NIGHT_YES;
+    }
+
+    /**
+     * The `versionName` aapt2 wrote into the manifest, which comes from
+     * `package.json`. Read back here rather than duplicated as a literal, so
+     * the string the page shows can never drift from the installed package.
+     */
+    private String readVersionName() {
+        try {
+            return getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+        } catch (Exception e) {
+            Log.w(TAG, "versionName unavailable", e);
+            return "";
+        }
     }
 
     private void pushSystemTheme() {

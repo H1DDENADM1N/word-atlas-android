@@ -3739,6 +3739,14 @@ code {
 .colophon svg {
   color: var(--terra);
 }
+/* The installed version sits after the sign-off, set off by a hairline so it
+   reads as metadata rather than part of the sentence. */
+.colophon-version {
+  padding-left: 9px;
+  border-left: 1px solid var(--line-strong);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
 
 /* ---------- onboarding ---------- */
 

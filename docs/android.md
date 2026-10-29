@@ -76,6 +76,21 @@ python3 scripts/android/fetch_tts.py --force --abis arm64-v8a   # 省 29 MB
 adb install -r word-atlas-offline.apk
 ```
 
+## 发版：版本号怎么改
+
+版本号只有一个来源，就是 `package.json` 的 `version`：
+
+| 位置 | 谁写 | 作用 |
+| :--- | :--- | :--- |
+| `package.json` / `package-lock.json` | 手改 | 唯一的版本来源 |
+| 清单 `versionName` | `build_apk.py` 读 `package.json`，传给 `aapt2 link` | 系统「应用信息」里显示的版本 |
+| 清单 `versionCode` | `build_apk.py` 的 `VERSION_CODE` | 覆盖升级的门槛，**每次发版 +1** |
+| 「关于」页脚 | 原生桥 `version()` 从 `PackageManager` 读回 | 页面上那个 `v1.0.1` |
+
+`versionCode` 忘了加：`adb install -r` 会失败（`INSTALL_FAILED_VERSION_DOWNGRADE`），或者装上去仍是旧版本——手机上看起来像"更新没生效"，实际是系统拒绝了同码或降码覆盖。版本名可以随意，code 必须单调递增。
+
+当前对应关系：`1.0.1` → `VERSION_CODE = 2`。
+
 ## 与网页版的差异
 
 网页版一行代码没少，离线版只在必要处做了替换，全部由构建配置和一层薄桥接控制，浏览器里打开仍然是原来的网站。
