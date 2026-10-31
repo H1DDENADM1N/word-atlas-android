@@ -16,6 +16,19 @@ function installedVersion() {
 
 const VERSION = installedVersion();
 
+/**
+ * How many entries got a real exam sentence, and how many sentences there are.
+ * Printed by `scripts/atlas/import_ielts.py`; bump both when it is re-run.
+ */
+const EXAM_WORDS = "2,216";
+const EXAM_SENTENCES = "1,211";
+
+/**
+ * How many entries came with a syllable break from OALDPEX. Printed by
+ * `scripts/atlas/import_syllables.py`; bump it when that is re-run.
+ */
+const SYLLABLE_WORDS = "4,672";
+
 export function About() {
   const atlas = useAtlas();
   return (
@@ -73,6 +86,21 @@ export function About() {
               的序号撤掉；作答后的卡片不再只是看一眼——能直接播放单词和例句，点词头进入完整词条；例句中文可以先高斯模糊，点一下才显示；填空句里的生词也能点开小窗。「我的」里还能让日常例句、雅思语境例句跟着自动朗读，一条读完接下一句，切走即停。
             </li>
             <li>
+              <b>词卡下面多了真题例句。</b>从第三方的《雅思真题例句词典》导入 {EXAM_SENTENCES}
+              条剑桥雅思 4 的原文与译文，{EXAM_WORDS} 个词条用得上：「雅思语境」下面多一节「真题例句」，标着出处（C04T2L3
+              就是剑 4、Test 2、听力 Part 3），带中文翻译；一个词有多条时点「换一句」往后翻。这些句子没有录音，朗读交给 APK 内置的 Kokoro。
+            </li>
+            <li>
+              <b>词头能看音节了。</b>点一下词卡上那个大单词，字母之间会浮出「·」——
+              <i>ex·hib·ition</i>，再点一下复原。分隔点不是猜的，取自《牛津高阶》词条自己的音节标注（{SYLLABLE_WORDS}{" "}
+              个词条带这项标注），所以和纸质词典的断法一致；词典本身没标的词（<i>study</i>、<i>hotel</i>{" "}
+              这类），点下去没有变化。
+            </li>
+            <li>
+              <b>词卡上能点的地方变多了。</b>例句、译文、常用搭配、词族、近义反义，连释义里那半句英文——<i>the natural object that moves around Earth</i>{" "}
+              里的 <i>natural</i>——都能点：点一下弹一张小卡，给出音标、中文和发音，想深究再进完整词条。任何时候只开一张，返回键先关它。
+            </li>
+            <li>
               <b>体积换自由。</b>安装包约 1 GB：{atlas.count.toLocaleString()} 幅插画、22,905
               段录音和语音模型全在里面。装一次，之后无论是在地铁里还是飞行模式，功能都不打折。
             </li>
@@ -96,6 +124,11 @@ export function About() {
           <h3 className="eyebrow">内容从哪里来</h3>
           <p className="muted">
             释义、例句、搭配和提示由大语言模型按统一词典规范撰写；插画由图像模型按统一画风逐词绘制；发音和朗读由 ElevenLabs 合成。内容经过结构与一致性自动校验，但没有逐条人工审校，可能有错。这一版没有改动任何一条内容——看到问题请提到本仓库，能一并回馈上游。
+          </p>
+          <p className="muted">
+            词卡里的「真题例句」是例外：它们来自第三方的《雅思真题例句词典》（剑桥雅思 4
+            听力与阅读的原文及译文），不属于本仓库的 CC BY 4.0
+            词库，版权归原编者，这里只做离线索引与朗读，供学习使用。
           </p>
           <p className="muted">不是官方雅思词表，也不承诺提分。</p>
         </section>

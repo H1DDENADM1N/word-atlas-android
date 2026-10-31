@@ -25,3 +25,7 @@ android/vendor/
 
 # Agent workspace state (session notes), not part of the app
 .workbuddy-ai/
+# Third-party dictionaries, not part of the app:
+# 雅思真题例句词典 -> scripts/atlas/import_ielts.py, OALDPEX -> import_syllables.py
+/雅思真题例句词典
+/OALDPEX

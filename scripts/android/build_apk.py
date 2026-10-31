@@ -41,7 +41,7 @@ TTS = ANDROID / "vendor" / "tts"
 PKG = "tech.wordatlas.app"
 # Bump this for every release: Android only accepts an equal or higher code on
 # upgrade, so an APK that reuses the old one silently refuses to install over it.
-VERSION_CODE = 3
+VERSION_CODE = 4
 # The display version lives in package.json and nowhere else — the shell reads
 # it back from the package manager at runtime instead of hardcoding a copy.
 VERSION_NAME = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))["version"]
@@ -155,15 +155,19 @@ def build_data_js() -> Path:
     index_text = index_file.read_text(encoding="utf-8")
     entries_dir = PUBLIC / "atlas" / "entries"
     chunks = [p.read_text(encoding="utf-8") for p in sorted(entries_dir.glob("*.json"), key=lambda p: int(p.stem))]
+    ielts_file = PUBLIC / "atlas" / "ielts.json"
+    ielts = ielts_file.read_text(encoding="utf-8") if ielts_file.exists() else ""
+    syl_file = PUBLIC / "atlas" / "syllables.json"
+    syllables = syl_file.read_text(encoding="utf-8") if syl_file.exists() else ""
     sfx = {}
     for path in sorted((PUBLIC / "sfx").glob("*.mp3")):
         sfx[path.name] = base64.b64encode(path.read_bytes()).decode("ascii")
-    payload = {"index": index_text, "chunks": chunks, "sfx": sfx}
+    payload = {"index": index_text, "chunks": chunks, "ielts": ielts, "syllables": syllables, "sfx": sfx}
     target = BUILD / "data.js"
     target.parent.mkdir(parents=True, exist_ok=True)
     body = "window.__WA_DATA=" + json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + ";\n"
     target.write_text(body, encoding="utf-8")
-    log(f"  {len(chunks)} entry chunks · {len(sfx)} cues · {human(target.stat().st_size)}")
+    log(f"  {len(chunks)} entry chunks · {len(ielts) // 1024} KB exam sentences · {len(syllables) // 1024} KB syllable breaks · {len(sfx)} cues · {human(target.stat().st_size)}")
     return target
 
 

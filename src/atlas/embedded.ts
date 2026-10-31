@@ -12,6 +12,10 @@ export interface EmbeddedData {
   index: string;
   /** JSON text per entry chunk, in `atlas/entries/N.json` order. */
   chunks: string[];
+  /** JSON text of `atlas/ielts.json` — the real exam sentences. */
+  ielts?: string;
+  /** JSON text of `atlas/syllables.json` — the dotted headwords. */
+  syllables?: string;
   /** Base64 payloads for `sfx/*.mp3`. */
   sfx: Record<string, string>;
 }

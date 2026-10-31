@@ -38,8 +38,9 @@
 | 界面音效与配乐 `sfx` | 4.4 MB |
 | 离线语音：ONNX Runtime + JNI（arm64 / x86_64） | 55 MB |
 | 离线语音：Kokoro-82M 音色 + espeak 音素表 | 353 MB |
+| 真题例句 `atlas/ielts.json` + 音节标注 `atlas/syllables.json` | 0.6 MB |
 | 前端 bundle、字体、图标 | ~1 MB |
-| **APK** | **约 1004 MB** |
+| **APK** | **约 1005 MB** |
 
 安装需要约 2.5 GB 空闲空间。图片和音频本身已压缩，打进 APK 时按原样存储（不再二次压缩），所以构建很快；`.onnx` 也不压缩，运行时可以直接映射。
 
@@ -85,11 +86,11 @@ adb install -r word-atlas-offline.apk
 | `package.json` / `package-lock.json` | 手改 | 唯一的版本来源 |
 | 清单 `versionName` | `build_apk.py` 读 `package.json`，传给 `aapt2 link` | 系统「应用信息」里显示的版本 |
 | 清单 `versionCode` | `build_apk.py` 的 `VERSION_CODE` | 覆盖升级的门槛，**每次发版 +1** |
-| 「关于」页脚 | 原生桥 `version()` 从 `PackageManager` 读回 | 页面上那个 `v1.0.2` |
+| 「关于」页脚 | 原生桥 `version()` 从 `PackageManager` 读回 | 页面上那个 `v1.0.3` |
 
 `versionCode` 忘了加：`adb install -r` 会失败（`INSTALL_FAILED_VERSION_DOWNGRADE`），或者装上去仍是旧版本——手机上看起来像"更新没生效"，实际是系统拒绝了同码或降码覆盖。版本名可以随意，code 必须单调递增。
 
-当前对应关系：`1.0.2` → `VERSION_CODE = 3`。
+当前对应关系：`1.0.3` → `VERSION_CODE = 4`。
 
 ## 与网页版的差异
 
@@ -205,6 +206,66 @@ WebView 侧还关闭了 `file` 域的脚本访问（`setAllowFileAccessFromFileU
 | `EntryView` 的 `ExZh` | 模糊态放在组件 state 里 | 词卡关闭即卸载，再打开自然恢复模糊；不必额外记「已看过」 |
 | `LookupText` | `word` 改成可选 | 填空句只有半句，没有词头要高亮；前后两半各渲染一个实例，靠 `word-atlas:lookup` 事件互斥 |
 | `useKeys` | 有词卡打开时直接返回 | 否则空格/回车会隔着词卡把题目答掉或推进到下一题 |
+
+### v1.0.3：词卡多了真题例句
+
+把第三方《雅思真题例句词典》里的剑桥雅思 4 真题例句挂到词卡「雅思语境」下面。
+
+| 位置 | 做法 | 为什么 |
+| :--- | :--- | :--- |
+| `scripts/atlas/import_ielts.py` | 遍历两个 MDict 容器里的 zlib 流：`.mdx` 的条目里只有 `<div class="ex-pl" data-id="C04T1L1_S04">` 占位符，句子本体在 `.mdd` 里那份 `data.js`（`var iaesd_data = […]`） | 没有实现 MDict 的键表/记录表索引——一次性的导入犯不上，而且不依赖词典的索引布局 |
+| 词形校验 | 只收句子中真的出现该词的链接；屈折形式显式列举（`increase` → increased / increasing / increasingly），不是「词干 + 最多 3 个字母」 | 前缀规则会漏掉 e 脱落和 y→i：`increase` 加 `-ing` 是 `increasing`，前 8 个字母就不一样了，第一版因此丢掉 `increase` 14 条里的 8 条。词典的 `ex-match-der` 还会把 `visitor` 链到只讲 "a variety of shopping" 的句子，那类仍然要挡 |
+| `public/atlas/ielts.json` | `pool`（句子本体）+ `words`（词条 → 句子 id） | 12,422 条链接只指向 1,211 句，逐词内联会把文件撑大好几倍；455 KB |
+| `src/atlas/ielts.ts` | 第一次打开有例句的词卡时才加载，模块级缓存 | 不拖慢首屏。安卓侧由 `build_data_js()` 塞进 `__WA_DATA.ielts`，运行时同样没有 `fetch` |
+| `EntryView` 的 `ExamExamples` | 一次显示一句，「换一句」翻页，出处做成胶囊标签（`C04T2L3`） | 卡片放不下十几句；出处跟着当前那句走，`title` 里给中文全称 |
+| 朗读 | `<Speak url={null}>` | 真题例句没有录音，走 `shellSpeak` 的 Kokoro；`Speak` 挂载时已 `prepareVoice` 预渲染，按下即出声 |
+
+一个词有几条就留几条（中位数 2 条、均值 5.6 条，`and` 顶到 403 条），按「含原词 > 句子更短 > 命题句」排序，`换一句` 逐条翻。
+
+> 这一版第一稿每个词只留 4 条，而且「词干 + 最多 3 个字母」的前缀规则漏掉了 `increasing` —— `increase` 的 14 条只剩 4 条。改法是把屈折形式显式列举；随后发现 20 条的上限本身还是在偷偷丢句子（91 个词条超过 20 条，`study` 54、`language` 44、`crime` 22 都被截），于是**上限整个去掉**：`--per-word` 默认 0，等于「词典里有几条就是几条」。代价只有 44 KB（411 → 455 KB）。
+
+覆盖 2,216 / 7,298 个词条（30%）。词典只收了剑桥雅思 4 的四个 Test，而词库里大量 A1 日常词（bedroom、pizza、elephant）本来就不出现在学术类文章里，所以这个比例是内容决定的，不是匹配漏了。
+
+### v1.0.3：词头点一下看音节
+
+OALDPEX 的词条自带音节标注，挂在词头元素的属性上，`oaldpex.js` 自己也是这么用的：
+
+```html
+<h1 class="headword" id="exhibition_h_1" syllable="ex·hib·ition" headword="exhibition">exhibition</h1>
+```
+
+```js
+const syllable = $headword.attr("syllable");   // 点击时用 syllable 换掉 headword
+```
+
+| 位置 | 做法 | 为什么 |
+| :--- | :--- | :--- |
+| `scripts/atlas/import_syllables.py` | 还是遍历 zlib 流找 `<h1 … class="headword">`，取 `syllable` / `headword` 两个属性，要求去掉「·」后与词头一致 | 和 IELTS 那个导入器同一套取巧解析，不依赖 MDict 索引 |
+| `public/atlas/syllables.json` | `{"dots": {词条 id: "ex·hib·ition"}}` | 4,672 条、109 KB；键用词条 id，省掉再对一次拼写 |
+| `src/atlas/syllables.ts` | `useSyllables(id)`，模块级缓存，优先读 `__WA_DATA.syllables` | 与 `useIelts` 同构；安卓侧由 `build_data_js()` 内联，网页版才 `fetch` |
+| `EntryView` 的词头 | `<h2>` 里套一个 `.hw-syl` 按钮，点一下在 `entry.w` 与带「·」的写法之间切换 | 词典本身就是「点词头切换」，这里照抄；没有标注的词条不渲染按钮，点下去也不会假装有反应 |
+| `.hw-syl` | `font: inherit` + 去边框，**没有任何 transition**，也没有 `:active` 变暗 | 第一版给了 `transition: opacity .2s` 和 `:active { opacity: .6 }`，真机上点一下会先暗再回弹，看着像闪了一次。字距也不要跟着变：点一下只该多出几个点，整行不该跳 |
+
+分隔点**不自己猜**。试过用同一批标注训一个切分模型（元音核 + 最大音节首 + `(辅音串, 右元音)` 众数），双音节词也只能复现 82% 的断点（`farm·ing` 会被切成 `far·ming`，`de·cline` 切成 `dec·line`），所以没有用它去补词典缺的那部分。
+
+### v1.0.3：词卡上能点的地方变多了
+
+原先只有例句里的英文能点开查词小窗，其余地方都是死文本。现在译文、常用搭配、词族、近义反义，以及释义里那半句英文也能点。
+
+| 位置 | 做法 | 为什么 |
+| :--- | :--- | :--- |
+| `Lookup.tsx` | 把「一个打开中的小卡」抽成 `useLookup()`：点开时先派发 `word-atlas:lookup` 让别的实例关掉自己，再写入自己的 selection | 例句早就是这个规则，多出十几个入口后仍然只能有一张卡 |
+| `LookupText` | 改用这个 hook，行为不变 | 顺带把「文本变了就关掉卡」的副作用并进去 |
+| 新增 `LookupWord` | 单个词：`label` 是显示的写法（`librarian (n.)`），`token` 是真正去查的词（`librarian`） | 词族带词性后缀，直接拿整串去查会查不到 |
+| 例句译文 / 真题译文 | `ExZh` 在**显示状态**下用 `LookupText` 渲染，模糊状态下仍是纯文本 | 模糊时点一下是「显示中文」，若同时把每个词变成按钮，两个点击语义会打架 |
+| 常用搭配 | 英文与中文都过 `LookupText` | 中文里偶尔夹着英文（`public library` 的释义不会，但真题译文会） |
+| 词族 / 近义 / 反义 | 换成 `LookupWord`，并沿用原来的虚线样式（`.relations .lookup-token`） | 词族原先点一下直接跳整张词卡；现在统一先弹小卡，卡片里仍有「查看词卡」 |
+| 释义 | `senses` 里的 `s.en` 过 `LookupText`，并补一条 `.senses .en .lookup-token { font-style: italic }` | `.lookup-token` 是按钮，会把斜体拉正；释义英文本来就是斜体，得还回去 |
+| 释义中文 | 保持纯文本 | 切词正则只认拉丁字母，查词索引也只有英文词头；中文在英文词典里没有可查的目标，做成按钮只会让人白点 |
+
+译文里真的会出现英文：1,211 条真题译文中有 163 条夹着 `Oxford`、`University`、`these` 这类词，查不到的词会明说「这个词不在词光词库里」，不会静默失败。
+
+覆盖 4,672 / 7,298 个词条（64%）。缺的 2,626 个里 1,694 个是单音节（本来就没有可断的地方），剩下 932 个是词典自己没标的多音节词（`hotel`、`river`、`city`、`study`），点词头不会有变化——这一条在「关于」里写明了，不装作能用。
 
 ### 排查记录：真机上点屏幕弹不出键盘
 
@@ -336,7 +397,7 @@ node scripts/android/verify_speech.mjs budget
 ## 已知限制
 
 - **冷启动**比网页版慢一点：首次要从 APK 里读取内联数据并解析。
-- **APK 很大**：1004 MB 是「全部资源装进 APK」的直接代价，其中 353 MB 是 Kokoro 音色。想瘦身可以只保留 `thumb/`（省 203 MB）、把录音转成更低码率、只打一个 ABI，或者换回 Piper 音色（`fetch_tts.py --voice piper`，省约 290 MB，音质明显下降）。
+- **APK 很大**：1005 MB 是「全部资源装进 APK」的直接代价，其中 353 MB 是 Kokoro 音色。想瘦身可以只保留 `thumb/`（省 203 MB）、把录音转成更低码率、只打一个 ABI，或者换回 Piper 音色（`fetch_tts.py --voice piper`，省约 290 MB，音质明显下降）。
 - **内置语音的延迟**：模型加载约 0.9 s，合成一句 7.8 s 的雅思长句要 3.6 s。点按之所以感觉即时，是因为按钮一出现就预渲染了；如果页面刚打开就立刻点，仍要等那 3.6 s。模型常驻约 500 MB PSS，系统内存吃紧会自动释放，下次说话再加载。
 - 语音只是兜底：22,905 段真人录音优先，TTS 只补第二条例句缺失的那 6,287 个词。
 - 内容仍是开源版的 7,298 词，许可与网页版一致（代码 MIT，词库与插画录音 CC BY 4.0，Kokoro-82M Apache-2.0，sherpa-onnx Apache-2.0）。

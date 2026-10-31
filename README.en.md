@@ -45,8 +45,9 @@ In one line: **same content, different runtime.** Upstream is about learning the
 | Fallback speech | Browser `speechSynthesis` / system TTS | Bundled Kokoro-82M via sherpa-onnx |
 | Save & share | Browser download | Saved to Download/Word Atlas, then the system share sheet |
 | Themes | Light / dark / system | Adds the aurora and starlight night skies, three English faces, and fixes "follow system" inside a WebView |
-| Word card | One transcription line | UK and US side by side; words in examples open a lookup popover |
-| Size | ~1 GB of assets in the repo | APK of about **1004 MB** |
+| Word card | One transcription line | UK and US side by side; tap the headword for syllable breaks; words in examples, translations, collocations, families, synonyms and the gloss all open a lookup popover |
+| Exam sentences | None | A **real exam sentences** section under the IELTS-context example: 1,211 sentences from Cambridge IELTS 4 with translations and a source chip |
+| Size | ~1 GB of assets in the repo | APK of about **1005 MB** |
 | Updating | `git pull` / the site updates itself | Rebuild and reinstall (a new signing key needs an uninstall) |
 | Toolchain | Node + Vite | Plus JDK 17 and the Android SDK, **no Gradle** |
 
@@ -54,14 +55,16 @@ In one line: **same content, different runtime.** Upstream is about learning the
 
 - **It cannot reach the network.** The manifest declares no permissions at all. Without `INTERNET` the kernel refuses to create sockets for this UID; there is no code path around it. Cleartext traffic is off and a network security config trusts system CAs only.
 - **There is no server.** The page is opened from `assets/www` over `file://`, with images and audio referenced relatively. Nothing listens on a port.
-- **Nothing is downloaded at runtime.** The index, 73 word shards and 24 sound cues are inlined; 7,298 illustrations, 7,298 thumbnails and 22,905 recordings ship as files. There is not a single `fetch` at runtime.
+- **Nothing is downloaded at runtime.** The index, 73 word shards, the exam-sentence and syllable indexes, and 24 sound cues are inlined; 7,298 illustrations, 7,298 thumbnails and 22,905 recordings ship as files. There is not a single `fetch` at runtime.
 
 No accounts, no analytics, no third-party SDKs.
 
 ### Added for the phone
 
 - **The study screens are laid out for one screen.** On a phone the old quiz could not fit four options and a verdict at once: the feedback was a sticky bottom sheet that landed on top of the last two answers, and a picture question needed a scroll before all four were visible. The session shell is now pinned to `100dvh`, the prompt absorbs the leftover height (illustration, listen orb and spell plate are capped in `dvh`), and the answers keep a fixed slot at the bottom. After answering, the feedback card takes the options' place instead of covering them; the desktop keeps the two-column options with the card beside them.
-- **Answers and verdicts sit where the thumb is.** The four options grew from 54 px to 68 px, moved 8 → 26 px off the bottom edge, and lost their 1–4 badges (the number keys still pick an answer). The card shown after answering is no longer just something to read: it plays the word and its example, the headword opens the full entry, example translations can start blurred until tapped, and a word inside a cloze sentence can be looked up in place. Settings also reads the daily and IELTS examples aloud after the word, one after another, stopping the moment you move on.
+- **Answers and verdicts sit where the thumb is.** The four options grew from 54 px to 68 px, moved 8 → 26 px off the bottom edge, and lost their 1–4 badges (the number keys still pick an answer). The card shown after answering is no longer just something to read: it plays the word and its example, the headword opens the full entry, example translations can start blurred until tapped, and any English word — in an example, a translation, a collocation, a word family, a synonym or the gloss itself — can be looked up in place. Settings also reads the daily and IELTS examples aloud after the word, one after another, stopping the moment you move on.
+- **Real exam sentences under the entry.** 1,211 sentences from Cambridge IELTS 4 — English and Chinese — were imported from the third-party 雅思真题例句词典 and matched to 2,216 entries. Below the IELTS-context example the card now shows a 真题例句 section tagged with its source (`C04T2L3` is book 4, Test 2, Listening Part 3), with a 换一句 button to walk through the rest. These have no recording, so the speaker hands them to the bundled Kokoro voice. `scripts/atlas/import_ielts.py` keeps only the sentences that actually contain the word: the dictionary also links `visitor` to a sentence about "a variety of shopping", which under a headword only confuses.
+- **Tap the headword to see its syllables.** Tapping the big word on a card puts a `·` between its syllables — `ex·hib·ition` — and tapping again puts it back. The breaks are not guessed: they come from the `syllable` attribute OALDPEX keeps on its own headword elements (`scripts/atlas/import_syllables.py` pulls out 4,672 of them), so they match the printed dictionary. A splitter trained on that same data only reproduced 82% of even the two-syllable breaks, so nothing is invented for the entries the dictionary leaves unmarked — `study` and `hotel` simply do not change when tapped.
 - **The keyboard no longer covers the page.** The typing stages drive an invisible `<input>` that is focused from the moment they mount, and a WebView ignores `focus()` on an already-focused element — so on a real phone tapping the stage did nothing at all. It now blurs before focusing and asks the shell for `showKeyboard()`; the viewport also carries `interactive-widget=resizes-content`, so the layout reflows into the space above the keyboard instead of hiding the field behind it.
 - **Bundled speech.** Only 1,011 words have a recording for their second example; the other 6,287 used to fall back to system TTS, which is silence on a phone without an English voice. They are now synthesised by the bundled Kokoro-82M voice, pre-rendered before you tap.
 - **Share cards work.** Under `file://` every document is its own opaque origin, so `drawImage` taints the canvas and `toBlob()` hands back `null`. Illustrations are now read as `data:` URLs, and the native layer opens the system share sheet afterwards (a WebView has no `navigator.share({files})`).
@@ -94,6 +97,19 @@ adb install -r word-atlas-offline.apk
 ```
 
 Android 7.0 (API 24) or newer; arm64 devices are fastest; about **2.5 GB** of free space to install.
+
+## Versions
+
+Current: **v1.0.3** (versionCode 4). Every release, with its checksums, is on [Releases](https://github.com/H1DDENADM1N/word-atlas-android/releases).
+
+| Version | In one line |
+| :--- | :--- |
+| **v1.0.3** | Real exam sentences, syllable breaks, and words you can tap anywhere |
+| v1.0.2 | Answers sized for the thumb; a verdict card you can use |
+| v1.0.1 | A quiz that fits one screen; a keyboard that stays out of the way |
+| v1.0.0 | The first fully offline build |
+
+Installing over an older version keeps your progress; a re-signed build needs an uninstall, so export a backup from 我的 first.
 
 ## Build from source
 
@@ -131,20 +147,24 @@ npm run build
 | Thumbnails | 88 MB |
 | Recordings | 426 MB |
 | Word data | 6.9 MB |
+| Exam sentences + syllable marks | 0.6 MB |
 | Sound cues and music | 4.4 MB |
 | ONNX Runtime + JNI (arm64, x86_64) | 55 MB |
 | Kokoro-82M voice + espeak tables | 353 MB |
 | Bundle, fonts, icons | ~1 MB |
-| **APK** | **~1004 MB** |
+| **APK** | **~1005 MB** |
 
 To slim it down: ship only `thumb/`, transcode the audio, build a single ABI, or switch back to Piper (`fetch_tts.py --voice piper`, saves ~290 MB with clearly worse quality).
 
 ## Known limits
 
 - Cold start is a little slower: the inlined data is parsed from the APK on first paint.
-- 1004 MB is the direct cost of putting every asset in the APK.
+- 1005 MB is the direct cost of putting every asset in the APK.
 - Bundled speech loads in ~0.9 s and takes ~3.6 s for a 7.8 s sentence. Taps are instant because the sentence is pre-rendered as soon as the card appears; tapping immediately after opening the page is not.
 - Speech is only a fallback: the 22,905 recordings always win.
+- Exam sentences reach 2,216 of 7,298 entries (30%): the source dictionary only covers the four Cambridge IELTS 4 tests, and A1 everyday words never appear in academic passages.
+- Syllable marks cover 4,672 entries (64%). Words the dictionary leaves unmarked (`study`, `hotel`, `river`, `city`) do nothing when tapped — a wrong break is worse than none, so nothing is guessed.
+- Chinese glosses are not tappable: the tokenizer and the lookup index are English-only.
 - `android/keystore/` holds a self-signed development key (password `wordatlas`). Use your own for real releases — changing it means installed copies cannot be upgraded in place.
 - Content tracks upstream, including its mistakes.
 
@@ -170,5 +190,7 @@ To slim it down: ship only `thumb/`, transcode the audio, build a single ABI, or
 | Application code | [MIT](LICENSE) |
 | Vocabulary, illustrations and word recordings | [CC BY 4.0](CONTENT_LICENSE.md), credit “Word Atlas contributors（词光）” |
 | Kokoro-82M, sherpa-onnx | Apache-2.0 |
+
+> The exam sentences and syllable marks are imported from third-party dictionaries (《雅思真题例句词典》, 《牛津高阶》) and are **not** covered by the CC BY 4.0 licence above. Their source files stay out of this repository (`.gitignore`); only the derived index ships in the APK.
 
 The app and all of its content were made and open-sourced by [@designfuchen](https://github.com/designfuchen) in [designfuchen/word-atlas](https://github.com/designfuchen/word-atlas). This fork is derived from its `main` at `99c00767` and only adds the offline Android packaging. The credit is upstream's; the bugs in the shell are ours.

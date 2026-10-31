@@ -1026,6 +1026,21 @@ code {
   flex-wrap: wrap;
   gap: 8px;
 }
+/* 词头可点：按词典的音节标注在字母之间加「·」。切换要瞬时完成——任何
+   transition 或 :active 变暗都会让单词先暗一下再回弹，看着像闪了一次。
+   这里也不改字距：点一下只该多出几个点，不该整行跟着跳一下。 */
+.hw-syl {
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  text-align: left;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: none;
+}
 .speak {
   display: inline-flex;
   align-items: center;
@@ -1129,6 +1144,10 @@ code {
   color: var(--ink-3);
   font-variation-settings: "opsz" var(--word-opsz);
 }
+/* 释义里的词能点开小卡，但 .lookup-token 会把斜体拉正——这里还回去。 */
+.senses .en .lookup-token {
+  font-style: italic;
+}
 .block {
   margin-top: 26px;
   padding-top: 22px;
@@ -1200,6 +1219,41 @@ code {
 .ex-zh.is-veiled:focus-visible {
   outline: 2px solid var(--ink);
   outline-offset: 3px;
+}
+
+/* 真题例句 — the exam the sentence came from rides in the heading, so the
+   sentence itself stays plain, and only one is on the page at a time. */
+.ex-source {
+  margin-left: 10px;
+  padding: 1px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  font: 500 11px/1.7 var(--sans);
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+  vertical-align: 1px;
+  white-space: nowrap;
+}
+.ex-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 12px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink-3);
+  font: 500 13px var(--sans);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.ex-more span {
+  margin-left: 2px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.65;
+}
+.ex-more:hover {
+  color: var(--ink);
 }
 
 /* ---------- word lookup ----------
@@ -1382,14 +1436,16 @@ code {
   gap: 6px 14px;
   font: 400 16px/1.45 var(--serif);
 }
-.relations .link {
+/* 词族、近义、反义里的词都能点开小卡；给一条虚线，免得看起来和普通文字一样。 */
+.relations .lookup-token {
   font: inherit;
   color: var(--ink);
   border-bottom: 1px dashed var(--ink-4);
 }
-.relations .link:hover {
+.relations .lookup-token:hover {
   color: var(--terra-ink);
   border-color: currentColor;
+  text-decoration: none;
 }
 .tip {
   margin-top: 24px;

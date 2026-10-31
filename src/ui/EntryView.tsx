@@ -1,15 +1,16 @@
-import { Bookmark, BookmarkCheck, Lightbulb, Share2 } from "lucide-react";
-import { useState } from "react";
+import { Bookmark, BookmarkCheck, ChevronRight, Lightbulb, Share2 } from "lucide-react";
+import { useEffect, useState } from "react";
 import type { Entry, WordRef } from "../atlas/types";
 import { useAtlas } from "../atlas/context";
+import { useIelts } from "../atlas/ielts";
+import { useSyllables } from "../atlas/syllables";
 import { splitHighlight, splitPair } from "../lib/text";
 import { formatInterval, isMastered } from "../store/srs";
 import { toggleBookmark, useStore } from "../store/store";
 import { Illustration } from "./Illustration";
-import { LookupText } from "./Lookup";
+import { LookupText, LookupWord } from "./Lookup";
 import { Speak } from "./Speak";
 import { shareWord } from "./share";
-import { openWord } from "../lib/router";
 
 export function Highlight({ text, word }: { text: string; word: string }) {
   const parts = splitHighlight(text, word);
@@ -77,7 +78,12 @@ export function Pronounce({ entry, refw }: { entry: Entry; refw: WordRef | Entry
  */
 function ExZh({ text, veil }: { text: string; veil: boolean }) {
   const [shown, setShown] = useState(false);
-  if (!veil) return <p className="ex-zh">{text}</p>;
+  if (!veil)
+    return (
+      <p className="ex-zh">
+        <LookupText text={text} />
+      </p>
+    );
   const toggle = () => setShown((v) => !v);
   return (
     <p
@@ -92,9 +98,52 @@ function ExZh({ text, veil }: { text: string; veil: boolean }) {
         toggle();
       }}
     >
-      <span className="ex-zh-text">{text}</span>
+      <span className="ex-zh-text">{shown ? <LookupText text={text} /> : text}</span>
       {!shown && <span className="ex-zh-hint">点按显示</span>}
     </p>
+  );
+}
+
+/**
+ * Real exam sentences for this word, from the Cambridge IELTS books. There is
+ * no recording for them, so the speaker hands the text to the bundled voice;
+ * the card has room for one at a time and the rest are a tap away, with the
+ * source badge travelling alongside whichever sentence is showing.
+ */
+function ExamExamples({ entry, veil }: { entry: Entry; veil: boolean }) {
+  const list = useIelts(entry.id);
+  const accent = useStore((s) => s.settings.accent);
+  const [i, setI] = useState(0);
+  if (!list.length) return null;
+  const at = i % list.length;
+  const x = list[at];
+  return (
+    <section className="block">
+      <h3 className="eyebrow">
+        真题例句
+        <span className="ex-source" title={x.label}>
+          {x.src}
+        </span>
+      </h3>
+      <ul className="examples is-exam">
+        <li>
+          <p className="ex-en" lang="en">
+            <LookupText text={x.en} word={entry.w} />
+            <Speak url={null} text={x.en} accent={accent} size="sm" className="ex-speak" />
+          </p>
+          {x.zh && <ExZh text={x.zh} veil={veil} />}
+        </li>
+      </ul>
+      {list.length > 1 && (
+        <button type="button" className="ex-more" onClick={() => setI(at + 1)} aria-label="换一句真题例句">
+          换一句
+          <span>
+            {at + 1}/{list.length}
+          </span>
+          <ChevronRight size={14} strokeWidth={2} />
+        </button>
+      )}
+    </section>
   );
 }
 
@@ -105,13 +154,16 @@ export function EntryView({ entry, mode = "detail", eager = true }: { entry: Ent
   const saved = useStore((s) => s.progress.bookmarks.includes(entry.id));
   const accent = useStore((s) => s.settings.accent);
   const veil = useStore((s) => s.settings.blurZh);
+  const syl = useSyllables(entry.id);
+  const [showSyl, setShowSyl] = useState(false);
+  useEffect(() => setShowSyl(false), [entry.id]);
   const topicIdx = atlas.topics.findIndex((t) => t[0] === entry.topic);
   const topic = atlas.topics[topicIdx];
   const exUrls = [atlas.audio(entry, "ex"), atlas.audio(entry, "ex2")];
   const famLinks = entry.fam.map((f) => {
-    const w = f.replace(/\s*\(.*\)\s*$/, "").trim().toLowerCase();
-    const hit = atlas.words.find((x) => x.word.toLowerCase() === w);
-    return { label: f, id: hit?.id };
+    // "librarian (n.)" prints with its part of speech but is looked up without it.
+    const word = f.replace(/\s*\(.*\)\s*$/, "").trim();
+    return { label: f, word };
   });
   const status = card ? (isMastered(card) ? "已掌握" : "学习中") : null;
 
@@ -146,7 +198,19 @@ export function EntryView({ entry, mode = "detail", eager = true }: { entry: Ent
           </p>
         )}
         <h2 className="headword" lang="en">
-          {entry.w}
+          {syl ? (
+            <button
+              type="button"
+              className="hw-syl"
+              onClick={() => setShowSyl((v) => !v)}
+              aria-pressed={showSyl}
+              aria-label={showSyl ? `${entry.w}，恢复原拼写` : `${entry.w}，显示音节分隔`}
+            >
+              {showSyl ? syl : entry.w}
+            </button>
+          ) : (
+            entry.w
+          )}
         </h2>
         <Pronounce entry={entry} refw={ref ?? entry} />
 
@@ -154,10 +218,12 @@ export function EntryView({ entry, mode = "detail", eager = true }: { entry: Ent
           {entry.senses.map((s, i) => (
             <li key={i}>
               <span className="pos">{s.pos}</span>
-              <span className="zh">{s.zh}</span>
+              <span className="zh">
+                <LookupText text={s.zh} />
+              </span>
               {s.en && (
                 <span className="en" lang="en">
-                  {s.en}
+                  <LookupText text={s.en} />
                 </span>
               )}
             </li>
@@ -182,6 +248,8 @@ export function EntryView({ entry, mode = "detail", eager = true }: { entry: Ent
           </section>
         )}
 
+        <ExamExamples entry={entry} veil={veil} />
+
         {entry.col.length > 0 && (
           <section className="block">
             <h3 className="eyebrow">常用搭配</h3>
@@ -190,8 +258,14 @@ export function EntryView({ entry, mode = "detail", eager = true }: { entry: Ent
                 const { en, zh } = splitPair(c);
                 return (
                   <li key={c}>
-                    <span lang="en">{en}</span>
-                    {zh && <small>{zh}</small>}
+                    <span lang="en">
+                      <LookupText text={en} />
+                    </span>
+                    {zh && (
+                      <small>
+                        <LookupText text={zh} />
+                      </small>
+                    )}
                   </li>
                 );
               })}
@@ -205,28 +279,30 @@ export function EntryView({ entry, mode = "detail", eager = true }: { entry: Ent
               <div>
                 <h3 className="eyebrow">词族</h3>
                 <p>
-                  {famLinks.map((f) =>
-                    f.id && mode === "detail" ? (
-                      <button key={f.label} className="link" onClick={() => openWord(f.id!)}>
-                        {f.label}
-                      </button>
-                    ) : (
-                      <span key={f.label}>{f.label}</span>
-                    ),
-                  )}
+                  {famLinks.map((f) => (
+                    <LookupWord key={f.label} label={f.label} token={f.word} />
+                  ))}
                 </p>
               </div>
             )}
             {entry.syn.length > 0 && (
               <div>
                 <h3 className="eyebrow">近义</h3>
-                <p>{entry.syn.map((s) => <span key={s}>{s}</span>)}</p>
+                <p>
+                  {entry.syn.map((s) => (
+                    <LookupWord key={s} label={s} />
+                  ))}
+                </p>
               </div>
             )}
             {entry.ant.length > 0 && (
               <div>
                 <h3 className="eyebrow">反义</h3>
-                <p>{entry.ant.map((s) => <span key={s}>{s}</span>)}</p>
+                <p>
+                  {entry.ant.map((s) => (
+                    <LookupWord key={s} label={s} />
+                  ))}
+                </p>
               </div>
             )}
           </section>

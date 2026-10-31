@@ -1,5 +1,5 @@
 import { X } from "lucide-react";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useAtlas } from "../atlas/context";
 import { findWord } from "../lib/lookup";
@@ -18,6 +18,60 @@ const NARROW = "(max-width: 640px)";
 type Selection = { token: string; anchor: HTMLElement };
 
 /**
+ * One open card at a time, anywhere on the page.
+ *
+ * Every tappable word keeps its own copy of this state, and opening one fires
+ * `word-atlas:lookup` so the others close themselves — the same rule the
+ * example sentences have always used, now that collocations, word families and
+ * synonyms are tappable too.
+ */
+function useLookup() {
+  const [selection, setSelection] = useState<Selection | null>(null);
+  useEffect(() => {
+    const close = () => setSelection(null);
+    window.addEventListener("word-atlas:lookup", close);
+    return () => window.removeEventListener("word-atlas:lookup", close);
+  }, []);
+  const open = useCallback((token: string, anchor: HTMLElement) => {
+    // Closes any other card first; ours wins because it is set afterwards.
+    window.dispatchEvent(new Event("word-atlas:lookup"));
+    setSelection({ token, anchor });
+  }, []);
+  const close = useCallback(() => setSelection(null), []);
+  return { selection, open, close };
+}
+
+/**
+ * A single word that opens the same quick gloss as a word inside a sentence.
+ *
+ * `label` is what the page prints — `librarian (n.)` — while `token` is what
+ * gets looked up — `librarian`. Tapping it is a lookup, not a navigation; the
+ * card itself still has a way into the full entry.
+ */
+export function LookupWord({ label, token }: { label: string; token?: string }) {
+  const { selection, open, close } = useLookup();
+  const word = token ?? label;
+  return (
+    <>
+      <button
+        type="button"
+        className="lookup-token"
+        aria-label={`查词：${word}`}
+        aria-haspopup="dialog"
+        onClick={(e) => {
+          e.stopPropagation();
+          open(word, e.currentTarget);
+        }}
+      >
+        {label}
+      </button>
+      {selection &&
+        createPortal(<LookupCard token={selection.token} anchor={selection.anchor} onClose={close} />, document.body)}
+    </>
+  );
+}
+
+/**
  * An example sentence whose words can be tapped for a quick gloss.
  *
  * Tapping opens a small card with the illustration, the Chinese meaning, a
@@ -29,17 +83,12 @@ type Selection = { token: string; anchor: HTMLElement };
  * half of a cloze either side of the blank), which has nothing to highlight.
  */
 export function LookupText({ text, word }: { text: string; word?: string }) {
-  const [selection, setSelection] = useState<Selection | null>(null);
+  const { selection, open: openCard, close } = useLookup();
   const parts = word ? splitHighlight(text, word) : null;
   const from = parts ? parts[0].length : -1;
   const to = parts ? from + parts[1].length : -1;
 
-  useEffect(() => setSelection(null), [text]);
-  useEffect(() => {
-    const close = () => setSelection(null);
-    window.addEventListener("word-atlas:lookup", close);
-    return () => window.removeEventListener("word-atlas:lookup", close);
-  }, []);
+  useEffect(() => close(), [text, close]);
 
   const nodes: React.ReactNode[] = [];
   let cursor = 0;
@@ -50,9 +99,7 @@ export function LookupText({ text, word }: { text: string; word?: string }) {
     const marked = start >= from && start < to;
     const open = (e: React.MouseEvent<HTMLButtonElement>) => {
       e.stopPropagation();
-      // Closes any other card first; ours wins because it is set afterwards.
-      window.dispatchEvent(new Event("word-atlas:lookup"));
-      setSelection({ token, anchor: e.currentTarget });
+      openCard(token, e.currentTarget);
     };
     const button = (
       <button
@@ -87,10 +134,7 @@ export function LookupText({ text, word }: { text: string; word?: string }) {
     <>
       {nodes}
       {selection &&
-        createPortal(
-          <LookupCard token={selection.token} anchor={selection.anchor} onClose={() => setSelection(null)} />,
-          document.body,
-        )}
+        createPortal(<LookupCard token={selection.token} anchor={selection.anchor} onClose={close} />, document.body)}
     </>
   );
 }
