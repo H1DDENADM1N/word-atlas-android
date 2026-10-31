@@ -988,6 +988,10 @@ code {
 
 .entry {
   display: grid;
+  /* minmax(0, 1fr) instead of the implicit auto track: a grid item's default
+     min-width is its content, so one unbreakable run inside the card used to
+     widen the whole track instead of wrapping. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 22px;
 }
 .entry-art .illo {

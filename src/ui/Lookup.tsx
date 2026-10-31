@@ -11,8 +11,17 @@ import { Illustration } from "./Illustration";
 import { Speak } from "./Speak";
 
 const TOKEN = /[A-Za-z]+(?:['’][A-Za-z]+)*/g;
-/** Punctuation that belongs to the word before it, so a line never starts with it. */
-const TRAILING = /^[^\sA-Za-z]+/;
+/**
+ * Punctuation that belongs to the word before it, so a line never starts with
+ * it — and nothing else.
+ *
+ * The class here used to be `[^\sA-Za-z]`, which also matches Chinese: after an
+ * English word in a translation ("但在Fosbury的时代…") the whole rest of the
+ * sentence was glued into one `white-space: nowrap` run. Chinese has no spaces,
+ * so that run never ended and the card grew to 544 px inside a 323 px column.
+ * Only \p{P} belongs to the word; ideographs do not.
+ */
+const TRAILING = /^[\p{P}]{1,4}/u;
 const NARROW = "(max-width: 640px)";
 
 type Selection = { token: string; anchor: HTMLElement };
