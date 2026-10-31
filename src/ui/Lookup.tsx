@@ -24,10 +24,13 @@ type Selection = { token: string; anchor: HTMLElement };
  * recording and a way into the full entry — so a sentence can be read without
  * losing the word you came from. Only one card is ever open: every instance
  * listens for `word-atlas:lookup` and closes itself.
+ *
+ * `word` marks the headword of the sentence; leave it out for a fragment (the
+ * half of a cloze either side of the blank), which has nothing to highlight.
  */
-export function LookupText({ text, word }: { text: string; word: string }) {
+export function LookupText({ text, word }: { text: string; word?: string }) {
   const [selection, setSelection] = useState<Selection | null>(null);
-  const parts = splitHighlight(text, word);
+  const parts = word ? splitHighlight(text, word) : null;
   const from = parts ? parts[0].length : -1;
   const to = parts ? from + parts[1].length : -1;
 

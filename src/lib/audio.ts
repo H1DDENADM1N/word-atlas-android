@@ -20,7 +20,13 @@ export function stopAudio() {
   if ("speechSynthesis" in window) window.speechSynthesis.cancel();
 }
 
-/** Play a recording, falling back to the device voice. Resolves when playback ends. */
+/**
+ * Play a recording, falling back to the device voice. Resolves when playback
+ * ends — or with "stopped" if something newer took the speaker over first (a
+ * new card, the back key, another tap). Callers that queue several clips — a
+ * word and then its examples — use that to drop the rest of the queue instead
+ * of speaking over the next screen.
+ */
 export async function play(url: string | null | undefined, text: string, accent: "uk" | "us" = "uk", rate = 1) {
   duck(true);
   try {
@@ -55,7 +61,7 @@ async function speak(url: string | null | undefined, text: string, accent: "uk" 
         a.onended = () => r();
         a.onpause = () => r();
       });
-      return "recorded" as const;
+      return token === mine ? ("recorded" as const) : ("stopped" as const);
     } catch {
       if (mine !== token) return "stopped" as const;
       current = null;
@@ -79,5 +85,5 @@ async function speak(url: string | null | undefined, text: string, accent: "uk" 
     u.onerror = () => r();
     speechSynthesis.speak(u);
   });
-  return "device" as const;
+  return mine === token ? ("device" as const) : ("stopped" as const);
 }

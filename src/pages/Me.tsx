@@ -177,6 +177,9 @@ export function Me({ privateAvailable }: { privateAvailable: boolean }) {
             </div>
           </Field>
           <Toggle label="自动播放发音" on={settings.autoplay} set={(v) => set({ autoplay: v })} />
+          <Toggle sub label="自动朗读日常例句" on={settings.autoplayEx} set={(v) => set({ autoplayEx: v })} />
+          <Toggle sub label="自动朗读雅思语境例句" on={settings.autoplayEx2} set={(v) => set({ autoplayEx2: v })} />
+          <Toggle label="例句中文先模糊" hint="点一下模糊的中文就显示，离开词卡后恢复模糊。" on={settings.blurZh} set={(v) => set({ blurZh: v })} />
           <Toggle label="界面音效" on={settings.sfx} set={(v) => set({ sfx: v })} />
           <Toggle label="开屏动画（每天一次）" on={settings.splash} set={(v) => set({ splash: v })} />
           <Toggle label="复习时加入拼写题" on={settings.spell} set={(v) => set({ spell: v })} />
@@ -236,10 +239,14 @@ function Field({ label, hint, stack, children }: { label: string; hint?: string;
   );
 }
 
-function Toggle({ label, on, set }: { label: string; on: boolean; set: (v: boolean) => void }) {
+/** `sub` marks a switch that only refines the one above it. */
+function Toggle({ label, hint, sub, on, set }: { label: string; hint?: string; sub?: boolean; on: boolean; set: (v: boolean) => void }) {
   return (
-    <label className="field toggle">
-      <b>{label}</b>
+    <label className={`field toggle ${sub ? "is-sub" : ""}`}>
+      <div>
+        <b>{label}</b>
+        {hint && <small>{hint}</small>}
+      </div>
       <input type="checkbox" role="switch" checked={on} onChange={(e) => set(e.target.checked)} />
       <span className="switch" aria-hidden="true" />
     </label>

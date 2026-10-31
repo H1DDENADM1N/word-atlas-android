@@ -85,11 +85,11 @@ adb install -r word-atlas-offline.apk
 | `package.json` / `package-lock.json` | 手改 | 唯一的版本来源 |
 | 清单 `versionName` | `build_apk.py` 读 `package.json`，传给 `aapt2 link` | 系统「应用信息」里显示的版本 |
 | 清单 `versionCode` | `build_apk.py` 的 `VERSION_CODE` | 覆盖升级的门槛，**每次发版 +1** |
-| 「关于」页脚 | 原生桥 `version()` 从 `PackageManager` 读回 | 页面上那个 `v1.0.1` |
+| 「关于」页脚 | 原生桥 `version()` 从 `PackageManager` 读回 | 页面上那个 `v1.0.2` |
 
 `versionCode` 忘了加：`adb install -r` 会失败（`INSTALL_FAILED_VERSION_DOWNGRADE`），或者装上去仍是旧版本——手机上看起来像"更新没生效"，实际是系统拒绝了同码或降码覆盖。版本名可以随意，code 必须单调递增。
 
-当前对应关系：`1.0.1` → `VERSION_CODE = 2`。
+当前对应关系：`1.0.2` → `VERSION_CODE = 3`。
 
 ## 与网页版的差异
 
@@ -182,6 +182,29 @@ WebView 侧还关闭了 `file` 域的脚本访问（`setAllowFileAccessFromFileU
 桌面端不受影响：`.learn` 仍是 `min-height`，选项维持两列，反馈卡与选项并排。
 
 `.summary` 必须排除在外——第一版把 `height:100dvh` 加在 `.learn` 上，结算页跟着被锁死，「完成」按钮永远点不到（真机上 swipe 也不动）。现在只有 `.learn:not(.summary)` 固定高度。
+
+### v1.0.2：选项更高，词卡能动手
+
+一屏装下之后，接下来修的是「够不够得着、点不点得动」。真机（363×800 CSS px）实测：
+
+| | v1.0.1 | v1.0.2 |
+| :--- | :--- | :--- |
+| 选项高度（手机 / 桌面） | 54 px / 64 px | **68 px / 72 px** |
+| 末个选项到屏底 | 8 px | **26 px** |
+| 选项序号 | `<kbd>1–4</kbd>` | 去掉（数字键仍可选） |
+| 作答后卡片 | 词头 + 释义 + 例句（手机端隐藏） | 词头（可点）+ 播放发音 / 播放例句 + 释义 + 例句 + 例句中文 |
+
+几处实现：
+
+| 位置 | 做法 | 为什么 |
+| :--- | :--- | :--- |
+| `.answer-zone` | `padding-bottom: calc(26px + env(safe-area-inset-bottom))` | WebView 未开 edge-to-edge 时 inset 为 0，26 px 是纯视觉留白；开了则自动再让出导航条 |
+| `Feedback` 词头 | `<button class="feedback-word">` → `openWord(entry.id)` | 词卡浮在答题页之上，关掉回到原题，会话不中断 |
+| `Feedback` 挂载 | `scrollIntoView({ block: "nearest" })` | 卡片比四个选项高，矮屏上「继续」会落在折线以下 |
+| `src/lib/read.ts` | `play()` 被打断时返回 `"stopped"`，链条据此中断 | 单词→日常例句→雅思例句串起来读，切题或退出立刻掐断，不会在下一屏继续说话 |
+| `EntryView` 的 `ExZh` | 模糊态放在组件 state 里 | 词卡关闭即卸载，再打开自然恢复模糊；不必额外记「已看过」 |
+| `LookupText` | `word` 改成可选 | 填空句只有半句，没有词头要高亮；前后两半各渲染一个实例，靠 `word-atlas:lookup` 事件互斥 |
+| `useKeys` | 有词卡打开时直接返回 | 否则空格/回车会隔着词卡把题目答掉或推进到下一题 |
 
 ### 排查记录：真机上点屏幕弹不出键盘
 

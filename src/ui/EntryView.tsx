@@ -1,4 +1,5 @@
 import { Bookmark, BookmarkCheck, Lightbulb, Share2 } from "lucide-react";
+import { useState } from "react";
 import type { Entry, WordRef } from "../atlas/types";
 import { useAtlas } from "../atlas/context";
 import { splitHighlight, splitPair } from "../lib/text";
@@ -69,12 +70,41 @@ export function Pronounce({ entry, refw }: { entry: Entry; refw: WordRef | Entry
   );
 }
 
+/**
+ * The Chinese line under an example, optionally veiled so the English can be
+ * read first. Tapping lifts the blur and tapping again puts it back; the veil
+ * lives in this component's state, so closing the card restores it.
+ */
+function ExZh({ text, veil }: { text: string; veil: boolean }) {
+  const [shown, setShown] = useState(false);
+  if (!veil) return <p className="ex-zh">{text}</p>;
+  const toggle = () => setShown((v) => !v);
+  return (
+    <p
+      className={`ex-zh is-veiled ${shown ? "is-shown" : ""}`}
+      role="button"
+      tabIndex={0}
+      aria-label={shown ? "隐藏中文翻译" : "显示中文翻译"}
+      onClick={toggle}
+      onKeyDown={(e) => {
+        if (e.key !== "Enter" && e.key !== " ") return;
+        e.preventDefault();
+        toggle();
+      }}
+    >
+      <span className="ex-zh-text">{text}</span>
+      {!shown && <span className="ex-zh-hint">点按显示</span>}
+    </p>
+  );
+}
+
 export function EntryView({ entry, mode = "detail", eager = true }: { entry: Entry; mode?: "detail" | "intro" | "reveal"; eager?: boolean }) {
   const atlas = useAtlas();
   const ref = atlas.byId.get(entry.id);
   const card = useStore((s) => s.progress.cards[entry.id]);
   const saved = useStore((s) => s.progress.bookmarks.includes(entry.id));
   const accent = useStore((s) => s.settings.accent);
+  const veil = useStore((s) => s.settings.blurZh);
   const topicIdx = atlas.topics.findIndex((t) => t[0] === entry.topic);
   const topic = atlas.topics[topicIdx];
   const exUrls = [atlas.audio(entry, "ex"), atlas.audio(entry, "ex2")];
@@ -145,7 +175,7 @@ export function EntryView({ entry, mode = "detail", eager = true }: { entry: Ent
                     <LookupText text={x.en} word={entry.w} />
                     <Speak url={exUrls[i] ?? null} text={x.en} accent={i === 1 && exUrls[1] ? "us" : accent} size="sm" className="ex-speak" />
                   </p>
-                  <p className="ex-zh">{x.zh}</p>
+                  <ExZh text={x.zh} veil={veil} />
                 </li>
               ))}
             </ul>

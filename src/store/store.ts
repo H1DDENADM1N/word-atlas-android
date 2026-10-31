@@ -61,6 +61,12 @@ export interface Progress {
 export interface Settings {
   accent: Accent;
   autoplay: boolean;
+  /** Read the daily example after the word, when it is spoken. */
+  autoplayEx: boolean;
+  /** Read the IELTS-context example after the word, when it is spoken. */
+  autoplayEx2: boolean;
+  /** Hide example translations behind a blur until they are tapped. */
+  blurZh: boolean;
   dailyNew: number;
   retention: number;
   theme: Theme;
@@ -78,6 +84,9 @@ export interface Settings {
 export const defaultSettings: Settings = {
   accent: "uk",
   autoplay: true,
+  autoplayEx: false,
+  autoplayEx2: false,
+  blurZh: false,
   dailyNew: 10,
   retention: 0.9,
   theme: "dark",
@@ -176,6 +185,9 @@ export function sanitizeSettings(v: unknown): Settings {
   if (!isObj(v)) return s;
   if (v.accent === "uk" || v.accent === "us") s.accent = v.accent;
   if (typeof v.autoplay === "boolean") s.autoplay = v.autoplay;
+  if (typeof v.autoplayEx === "boolean") s.autoplayEx = v.autoplayEx;
+  if (typeof v.autoplayEx2 === "boolean") s.autoplayEx2 = v.autoplayEx2;
+  if (typeof v.blurZh === "boolean") s.blurZh = v.blurZh;
   if (num(v.dailyNew, 0, 100)) s.dailyNew = Math.round(v.dailyNew as number);
   if (num(v.retention, 0.7, 0.97)) s.retention = v.retention as number;
   if (THEMES.includes(v.theme as Theme)) s.theme = v.theme as Theme;

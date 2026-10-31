@@ -1,11 +1,12 @@
-import { ArrowRight, Check, Lightbulb, RotateCcw, Share2, Volume2, X } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Check, Lightbulb, RotateCcw, Share2, Volume2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { prefetch, useAtlas, useEntry } from "../atlas/context";
 import type { Entry, WordRef } from "../atlas/types";
 import { play, stopAudio } from "../lib/audio";
+import { readEntry } from "../lib/read";
 import { burst } from "../lib/burst";
 import { cue } from "../lib/sound";
-import { go } from "../lib/router";
+import { currentLocation, go, openWord } from "../lib/router";
 import { focusField, revealField } from "../lib/keyboard";
 import { gap, normalize } from "../lib/text";
 import { answer, advance, buildSession, gradeFor, sessionStats } from "../store/session";
@@ -13,6 +14,7 @@ import { Rating } from "../store/srs";
 import { store, useStore, type ActiveSession, type QuizKind, type Step } from "../store/store";
 import { EntryView, Highlight } from "../ui/EntryView";
 import { Illustration } from "../ui/Illustration";
+import { LookupText } from "../ui/Lookup";
 import { Galaxy } from "../galaxy/Galaxy";
 import { AmbiencePicker } from "../ui/Ambience";
 import { Ring } from "../ui/Ring";
@@ -95,8 +97,14 @@ function Intro({ step }: { step: Step }) {
   const settings = useStore((s) => s.settings);
   const elapsed = useStepTimer();
   useEffect(() => {
-    if (entry && settings.autoplay) void play(atlas.audio(entry, settings.accent), entry.w, settings.accent);
-  }, [entry, atlas, settings.autoplay, settings.accent]);
+    if (!entry) return;
+    // The word, then whichever examples 我的 → 自动播放 has switched on.
+    void readEntry(atlas, entry, entry, settings.accent, {
+      word: settings.autoplay,
+      daily: settings.autoplayEx,
+      ielts: settings.autoplayEx2,
+    });
+  }, [entry, atlas, settings.autoplay, settings.accent, settings.autoplayEx, settings.autoplayEx2]);
   const next = useCallback(() => {
     stopAudio();
     if (store.get().settings.sfx) void cue("flip");
@@ -150,9 +158,15 @@ function Quiz({ step, session }: { step: Step & { kind: QuizKind }; session: Act
       }
       if (settings.sfx) void cue(correct ? "correct" : "wrong");
       answer(atlas, step, correct, gradeFor(step.kind, correct, ms, hints > 0), value);
-      if (entry) void play(atlas.audio(entry, settings.accent), entry.w, settings.accent);
+      // Answering always says the word; the examples follow if they are on.
+      if (entry)
+        void readEntry(atlas, entry, ref, settings.accent, {
+          word: true,
+          daily: settings.autoplayEx,
+          ielts: settings.autoplayEx2,
+        });
     },
-    [pending, elapsed, settings, atlas, step, hints, entry],
+    [pending, elapsed, settings, atlas, step, hints, entry, ref],
   );
 
   const next = useCallback(() => {
@@ -199,9 +213,11 @@ function Quiz({ step, session }: { step: Step & { kind: QuizKind }; session: Act
             <p className="cloze" lang="en">
               {sentence ? (
                 <>
-                  {sentence.before}
+                  {/* Both halves stay tappable, so a word you do not know can be
+                      looked up without leaving the question. */}
+                  <LookupText text={sentence.before} />
                   <span className="blank">{pending ? sentence.hidden : "　　　"}</span>
-                  {sentence.after}
+                  <LookupText text={sentence.after} />
                 </>
               ) : (
                 entry.senses[0].zh
@@ -232,14 +248,15 @@ function Quiz({ step, session }: { step: Step & { kind: QuizKind }; session: Act
           <SpellInput entry={entry} pending={pending} hints={hints} onHint={() => setHints((h) => Math.min(entry.w.length - 1, h + 1))} onSubmit={(v) => submit(v, normalize(v) === normalize(entry.w))} />
         ) : (
           <ul className={`options ${step.kind === "meaning" ? "options-zh" : "options-en"}`}>
-            {options.map((o, i) => {
+            {options.map((o) => {
               const isAnswer = o.id === ref.id;
               const chosen = pending?.value === o.id;
               const cls = pending ? (isAnswer ? "is-answer" : chosen ? "is-chosen" : "is-dim") : "";
               return (
                 <li key={o.id}>
+                  {/* No 1–4 badge: on a phone the keys are never pressed, and the
+                      digits only competed with the answers. */}
                   <button className={`option ${cls}`} data-option={o.id} onClick={() => submit(o.id, isAnswer)} disabled={!!pending}>
-                    <kbd>{i + 1}</kbd>
                     <span lang={step.kind === "meaning" ? "zh" : "en"}>{step.kind === "meaning" ? o.zh : o.word}</span>
                     {pending && isAnswer && <Check size={20} className="option-mark" />}
                     {pending && chosen && !isAnswer && <X size={20} className="option-mark" />}
@@ -270,9 +287,9 @@ function SpellPrompt({ entry, refw, hints }: { entry: Entry; refw: WordRef; hint
         </p>
         {sentence && (
           <p className="cloze cloze-sm" lang="en">
-            {sentence.before}
+            <LookupText text={sentence.before} />
             <span className="blank">　　　</span>
-            {sentence.after}
+            <LookupText text={sentence.after} />
           </p>
         )}
         <Speak url={atlas.audio(entry, accent)} text={entry.w} accent={accent} size="sm" label="听发音" />
@@ -339,30 +356,51 @@ function SpellInput({ entry, pending, hints, onHint, onSubmit }: { entry: Entry;
   );
 }
 
+/**
+ * The verdict card. It carries the word, its recording, the example with its
+ * own recording, and a way into the full entry — so a miss can be repaired on
+ * the spot instead of waiting for the next meeting.
+ */
 function Feedback({ entry, refw, correct, onNext }: { entry: Entry; refw: WordRef; correct: boolean; onNext: () => void }) {
   const atlas = useAtlas();
+  const accent = useStore((s) => s.settings.accent);
   const btn = useRef<HTMLButtonElement>(null);
-  useEffect(() => btn.current?.focus({ preventScroll: true }), []);
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    btn.current?.focus({ preventScroll: true });
+    // The card is taller than the four options it replaced, so on a phone its
+    // lower half can start below the fold.
+    box.current?.scrollIntoView({ block: "nearest" });
+  }, []);
+  const ex = entry.ex[0];
   return (
-    <div className={`feedback ${correct ? "is-right" : "is-wrong"}`} role="status">
+    <div ref={box} className={`feedback ${correct ? "is-right" : "is-wrong"}`} role="status">
       <div className="feedback-inner">
         <Illustration src={atlas.img(entry, "thumb")} word={entry.w} topic={refw.topic} className="feedback-art" />
         <div className="feedback-text">
           <p className="feedback-verdict">{correct ? "答对了" : "没关系，记住它"}</p>
-          <p className="feedback-word">
+          <button type="button" className="feedback-word" onClick={() => openWord(entry.id)} aria-label={`打开 ${entry.w} 的词卡`}>
             <b lang="en">{entry.w}</b>
             <span className="ipa">{entry.uk || entry.us}</span>
-          </p>
+            <ArrowUpRight size={15} strokeWidth={2.2} className="feedback-go" aria-hidden="true" />
+          </button>
+          <div className="feedback-tools">
+            <Speak url={atlas.audio(refw, accent)} text={entry.w} accent={accent} size="sm" label="播放发音" />
+            {ex && <Speak url={atlas.audio(entry, "ex")} text={ex.en} accent={accent} size="sm" label="播放例句" />}
+          </div>
           <p className="feedback-zh">
             {entry.senses
               .slice(0, 2)
               .map((s) => `${s.pos} ${s.zh}`)
               .join("　")}
           </p>
-          {entry.ex[0] && (
-            <p className="feedback-ex" lang="en">
-              <Highlight text={entry.ex[0].en} word={entry.w} />
-            </p>
+          {ex && (
+            <div className="feedback-sentence">
+              <p className="feedback-ex" lang="en">
+                <Highlight text={ex.en} word={entry.w} />
+              </p>
+              <p className="feedback-zh">{ex.zh}</p>
+            </div>
           )}
         </div>
         <button ref={btn} className={`btn btn-xl ${correct ? "btn-sage" : "btn-terra"}`} onClick={onNext}>
@@ -457,6 +495,9 @@ export function useKeys(map: Record<string, () => void>) {
   useEffect(() => {
     const on = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
+      // A word card opened over the session owns the keyboard: Space would
+      // otherwise answer or advance the question behind it.
+      if (currentLocation().word) return;
       const t = e.target as HTMLElement;
       const typing = t.tagName === "INPUT" || t.tagName === "TEXTAREA";
       if (typing && !(e.key === "Enter" && (t as HTMLInputElement).readOnly)) return;
